@@ -7,7 +7,7 @@ import FamilySupport from './FamilySupport';
 import GoalTracker from './GoalTracker';
 import MonthlySummary from './MonthlySummary';
 import Settings from './Settings';
-import { saveData, loadData } from './DataStorage';
+import { saveData, loadData } from './dataStorage';
 
 function App() {
   const [cashAvailable, setCashAvailable] = useState(() => loadData('cash', 0));
