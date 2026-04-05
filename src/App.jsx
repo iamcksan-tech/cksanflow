@@ -63,13 +63,17 @@ function App() {
   const [dailyIncomes, setDailyIncomes] = useState(() => loadData('dailyIncomes', []));
   const [todayIncome, setTodayIncome] = useState('');
 
-  // Credit Cards
+  // Credit Cards with Smart Billing
   const [creditCards, setCreditCards] = useState(() => loadData('creditCards', [
-    { id: 1, name: 'SMBC Olive Card', limit: 500000, available: 350000, balance: 150000, dueDate: '26th', toPay: 10000 }
+    { id: 1, name: 'SMBC Olive Card', limit: 500000, available: 350000, balance: 150000, paymentDate: '26th', closingDate: '11th', thisCyclePayment: 10000, nextCyclePayment: 0 }
   ]));
-  const [newCard, setNewCard] = useState({ name: '', limit: '', available: '', balance: '', dueDate: '10th', toPay: '' });
+  const [newCard, setNewCard] = useState({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
   const [showAddCard, setShowAddCard] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
+  
+  // Card Expenses
+  const [cardExpenses, setCardExpenses] = useState(() => loadData('cardExpenses', []));
+  const [newExpense, setNewExpense] = useState({ cardId: '', amount: '', category: 'Shopping' });
 
   // Trust Fund & Investment
   const [investmentPercent, setInvestmentPercent] = useState(() => loadData('investmentPercent', 10));
@@ -78,9 +82,9 @@ function App() {
 
   // Family Support
   const [familySupport, setFamilySupport] = useState(() => loadData('familySupport', {
-    parents: { amount: 75000, lastPaid: '' },
-    daughter: { amount: 25000, lastPaid: '' },
-    other: { amount: 0, lastPaid: '' }
+    parents: { amount: 75000, scheduledDate: '19th', lastPaid: '' },
+    daughter: { amount: 25000, scheduledDate: 'anytime', lastPaid: '' },
+    other: { amount: 0, scheduledDate: 'anytime', lastPaid: '' }
   }));
 
   // Health Funds
@@ -90,15 +94,12 @@ function App() {
 
   // Home Expenses
   const [homeExpenses, setHomeExpenses] = useState(() => loadData('homeExpenses', {
-    food: 0,
-    gas: 0,
-    electricity: 0
+    food: 0, gas: 0, electricity: 0
   }));
 
   // Car Expenses
   const [carExpenses, setCarExpenses] = useState(() => loadData('carExpenses', {
-    dailyOil: 2000,
-    totalThisMonth: 0
+    dailyOil: 2000, totalThisMonth: 0
   }));
 
   // Monthly Summary
@@ -110,6 +111,24 @@ function App() {
   const [showCustomize, setShowCustomize] = useState(false);
   const [appName, setAppName] = useState(() => loadData('appName', 'CkSanFlow'));
 
+  // Helper: Calculate closing date from payment date
+  const calculateClosingDate = (paymentDate) => {
+    const date = parseInt(paymentDate);
+    let closing = date - 15;
+    if (closing <= 0) closing += 30;
+    return closing.toString() + 'th';
+  };
+
+  // Helper: Check if expense is in current cycle or next cycle
+  const isInCurrentCycle = (expenseDate, closingDate) => {
+    const today = new Date();
+    const expenseDay = new Date(expenseDate).getDate();
+    const closingDay = parseInt(closingDate);
+    
+    // If expense is after closing date, it's for next cycle
+    return expenseDay <= closingDay;
+  };
+
   // Save data
   useEffect(() => {
     saveData('cash', cashAvailable);
@@ -117,6 +136,7 @@ function App() {
     saveData('debts', totalDebts);
     saveData('dailyIncomes', dailyIncomes);
     saveData('creditCards', creditCards);
+    saveData('cardExpenses', cardExpenses);
     saveData('investmentPercent', investmentPercent);
     saveData('trustFund', trustFund);
     saveData('spusShares', spusShares);
@@ -127,7 +147,7 @@ function App() {
     saveData('monthlyIncome', monthlyIncome);
     saveData('monthlyExpenses', monthlyExpenses);
     saveData('appName', appName);
-  }, [cashAvailable, savings, totalDebts, dailyIncomes, creditCards, investmentPercent, trustFund, spusShares, familySupport, healthFunds, homeExpenses, carExpenses, monthlyIncome, monthlyExpenses, appName]);
+  }, [cashAvailable, savings, totalDebts, dailyIncomes, creditCards, cardExpenses, investmentPercent, trustFund, spusShares, familySupport, healthFunds, homeExpenses, carExpenses, monthlyIncome, monthlyExpenses, appName]);
 
   // Dark mode
   useEffect(() => {
@@ -172,6 +192,8 @@ function App() {
       return;
     }
 
+    const closingDate = calculateClosingDate(newCard.paymentDate);
+
     if (editingCard) {
       setCreditCards(creditCards.map(card => 
         card.id === editingCard.id ? {
@@ -180,8 +202,10 @@ function App() {
           limit: parseFloat(newCard.limit) || card.limit,
           available: parseFloat(newCard.available) || card.available,
           balance: parseFloat(newCard.balance) || card.balance,
-          dueDate: newCard.dueDate,
-          toPay: parseFloat(newCard.toPay) || card.toPay
+          paymentDate: newCard.paymentDate,
+          closingDate: closingDate,
+          thisCyclePayment: parseFloat(newCard.thisCyclePayment) || card.thisCyclePayment,
+          nextCyclePayment: parseFloat(newCard.nextCyclePayment) || card.nextCyclePayment
         } : card
       ));
       setEditingCard(null);
@@ -193,13 +217,15 @@ function App() {
         limit: parseFloat(newCard.limit),
         available: parseFloat(newCard.available) || 0,
         balance: parseFloat(newCard.balance) || 0,
-        dueDate: newCard.dueDate,
-        toPay: parseFloat(newCard.toPay) || 0
+        paymentDate: newCard.paymentDate,
+        closingDate: closingDate,
+        thisCyclePayment: parseFloat(newCard.thisCyclePayment) || 0,
+        nextCyclePayment: parseFloat(newCard.nextCyclePayment) || 0
       }]);
       alert('✅ Card added!');
     }
 
-    setNewCard({ name: '', limit: '', available: '', balance: '', dueDate: '10th', toPay: '' });
+    setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
     setShowAddCard(false);
   };
 
@@ -210,8 +236,9 @@ function App() {
       limit: card.limit.toString(),
       available: card.available.toString(),
       balance: card.balance.toString(),
-      dueDate: card.dueDate,
-      toPay: card.toPay.toString()
+      paymentDate: card.paymentDate,
+      thisCyclePayment: card.thisCyclePayment.toString(),
+      nextCyclePayment: card.nextCyclePayment.toString()
     });
     setShowAddCard(true);
   };
@@ -223,6 +250,67 @@ function App() {
     }
   };
 
+  const handleAddCardExpense = () => {
+    const { cardId, amount, category } = newExpense;
+    const expenseAmount = parseFloat(amount);
+    
+    if (!cardId || !expenseAmount || expenseAmount <= 0) {
+      alert('Please select card and enter amount');
+      return;
+    }
+
+    const card = creditCards.find(c => c.id === parseInt(cardId));
+    if (!card) return;
+
+    if (expenseAmount > card.available) {
+      alert('❌ Expense exceeds available credit!');
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const expenseDay = new Date().getDate();
+    const closingDay = parseInt(card.closingDate);
+    
+    // Determine if this expense is for current cycle or next cycle
+    const isCurrentCycle = expenseDay <= closingDay;
+
+    // Update card balance and available
+    setCreditCards(creditCards.map(c => {
+      if (c.id === parseInt(cardId)) {
+        const newBalance = c.balance + expenseAmount;
+        const newAvailable = c.limit - newBalance;
+        
+        // Add to appropriate cycle payment
+        const newThisCycle = isCurrentCycle ? c.thisCyclePayment + expenseAmount : c.thisCyclePayment;
+        const newNextCycle = isCurrentCycle ? c.nextCyclePayment : c.nextCyclePayment + expenseAmount;
+        
+        return {
+          ...c,
+          balance: newBalance,
+          available: newAvailable,
+          thisCyclePayment: newThisCycle,
+          nextCyclePayment: newNextCycle
+        };
+      }
+      return c;
+    }));
+
+    // Add expense to history
+    setCardExpenses([{
+      id: Date.now(),
+      cardId: parseInt(cardId),
+      cardName: card.name,
+      amount: expenseAmount,
+      category,
+      date: today,
+      cycle: isCurrentCycle ? 'This Month' : 'Next Month'
+    }, ...cardExpenses]);
+
+    setMonthlyExpenses(monthlyExpenses + expenseAmount);
+    setNewExpense({ cardId: '', amount: '', category: 'Shopping' });
+    alert(`✅ ¥${expenseAmount.toLocaleString()} added to ${card.name} (${isCurrentCycle ? 'This' : 'Next'} month's payment)`);
+  };
+
   const handlePayCard = (cardId, amount) => {
     if (amount > cashAvailable) {
       alert('❌ Insufficient cash!');
@@ -232,11 +320,12 @@ function App() {
     setCreditCards(creditCards.map(card => {
       if (card.id === cardId) {
         const newBalance = card.balance - amount;
+        const newAvailable = card.limit - Math.max(0, newBalance);
         return {
           ...card,
           balance: Math.max(0, newBalance),
-          available: card.limit - Math.max(0, newBalance),
-          toPay: Math.max(0, card.toPay - amount)
+          available: newAvailable,
+          thisCyclePayment: Math.max(0, card.thisCyclePayment - amount)
         };
       }
       return card;
@@ -244,7 +333,6 @@ function App() {
 
     setCashAvailable(cashAvailable - amount);
     setTotalDebts(totalDebts - amount);
-    setMonthlyExpenses(monthlyExpenses + amount);
     alert(`✅ ¥${amount.toLocaleString()} paid!`);
   };
 
@@ -343,6 +431,19 @@ function App() {
     setDarkMode(newMode);
     document.documentElement.setAttribute('data-theme', newMode ? 'dark' : 'light');
     localStorage.setItem('ckSanFlow_darkMode', newMode);
+  };
+
+  const getCategoryIcon = (category) => {
+    const icons = {
+      'Shopping': '🛒',
+      'Food': '🍽️',
+      'Gas': '⛽',
+      'Transport': '🚗',
+      'Entertainment': '🎬',
+      'Health': '💊',
+      'Other': '📦'
+    };
+    return icons[category] || '📦';
   };
 
   return (
@@ -564,15 +665,7 @@ function App() {
             value={todayIncome}
             onChange={(e) => setTodayIncome(e.target.value)}
             placeholder="Amount (¥)"
-            style={{
-              flex: 1,
-              padding: '14px',
-              borderRadius: '10px',
-              border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
-              background: darkMode ? '#374151' : '#f9fafb',
-              color: darkMode ? '#f3f4f6' : '#1f2937',
-              fontSize: '16px'
-            }}
+            style={inputStyle(darkMode)}
           />
           <button
             onClick={handleAddIncome}
@@ -614,9 +707,66 @@ function App() {
       </CollapsibleSection>
 
       {/* Credit Cards */}
-      <CollapsibleSection title="Credit cards" icon="💳" darkMode={darkMode}>
+      <CollapsibleSection title="Credit cards" icon="💳" darkMode={darkMode} defaultOpen={true}>
+        {/* Add Expense Section */}
+        <div style={{
+          marginTop: '15px',
+          padding: '15px',
+          background: darkMode ? '#374151' : '#f3f4f6',
+          borderRadius: '12px'
+        }}>
+          <p style={{ margin: '0 0 10px 0', fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>➕ Add Today's Expense</p>
+          <div style={{ display: 'grid', gap: '10px' }}>
+            <select
+              value={newExpense.cardId}
+              onChange={(e) => setNewExpense({...newExpense, cardId: e.target.value})}
+              style={inputStyle(darkMode)}
+            >
+              <option value="">Select Card</option>
+              {creditCards.map(card => (
+                <option key={card.id} value={card.id}>{card.name}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              placeholder="Amount (¥)"
+              value={newExpense.amount}
+              onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
+              style={inputStyle(darkMode)}
+            />
+            <select
+              value={newExpense.category}
+              onChange={(e) => setNewExpense({...newExpense, category: e.target.value})}
+              style={inputStyle(darkMode)}
+            >
+              <option value="Shopping">🛒 Shopping</option>
+              <option value="Food">🍽️ Food</option>
+              <option value="Gas">⛽ Gas</option>
+              <option value="Transport">🚗 Transport</option>
+              <option value="Entertainment">🎬 Entertainment</option>
+              <option value="Health">💊 Health</option>
+              <option value="Other">📦 Other</option>
+            </select>
+            <button
+              onClick={handleAddCardExpense}
+              style={{
+                padding: '12px',
+                background: '#14b8a6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              Add Expense
+            </button>
+          </div>
+        </div>
+
+        {/* Add Card Button */}
         <button
-          onClick={() => { setShowAddCard(!showAddCard); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', dueDate: '10th', toPay: '' }); }}
+          onClick={() => { setShowAddCard(!showAddCard); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }}
           style={{
             width: '100%',
             padding: '12px',
@@ -632,24 +782,27 @@ function App() {
           {showAddCard ? '✕ Cancel' : '+ Add Card'}
         </button>
 
+        {/* Add/Edit Card Form */}
         {showAddCard && (
           <div style={{ marginTop: '15px', display: 'grid', gap: '10px' }}>
             <input type="text" placeholder="Card Name" value={newCard.name} onChange={(e) => setNewCard({...newCard, name: e.target.value})} style={inputStyle(darkMode)} />
             <input type="number" placeholder="Credit Limit (¥)" value={newCard.limit} onChange={(e) => setNewCard({...newCard, limit: e.target.value})} style={inputStyle(darkMode)} />
             <input type="number" placeholder="Available Amount (¥)" value={newCard.available} onChange={(e) => setNewCard({...newCard, available: e.target.value})} style={inputStyle(darkMode)} />
             <input type="number" placeholder="Current Balance (¥)" value={newCard.balance} onChange={(e) => setNewCard({...newCard, balance: e.target.value})} style={inputStyle(darkMode)} />
-            <input type="number" placeholder="Amount to Pay Next (¥)" value={newCard.toPay} onChange={(e) => setNewCard({...newCard, toPay: e.target.value})} style={inputStyle(darkMode)} />
-            <select value={newCard.dueDate} onChange={(e) => setNewCard({...newCard, dueDate: e.target.value})} style={inputStyle(darkMode)}>
-              <option value="10th">10th of month</option>
-              <option value="26th">26th of month</option>
-              <option value="27th">27th of month</option>
+            <select value={newCard.paymentDate} onChange={(e) => setNewCard({...newCard, paymentDate: e.target.value})} style={inputStyle(darkMode)}>
+              <option value="10th">10th (Close: 25th)</option>
+              <option value="26th">26th (Close: 11th)</option>
+              <option value="27th">27th (Close: 12th)</option>
             </select>
+            <input type="number" placeholder="This Month Payment (¥)" value={newCard.thisCyclePayment} onChange={(e) => setNewCard({...newCard, thisCyclePayment: e.target.value})} style={inputStyle(darkMode)} />
+            <input type="number" placeholder="Next Month Payment (¥)" value={newCard.nextCyclePayment} onChange={(e) => setNewCard({...newCard, nextCyclePayment: e.target.value})} style={inputStyle(darkMode)} />
             <button onClick={handleAddCard} style={{ padding: '14px', background: editingCard ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>
               {editingCard ? '💾 Update' : '➕ Add Card'}
             </button>
           </div>
         )}
 
+        {/* Card List */}
         {creditCards.map((card) => (
           <div key={card.id} style={{
             background: darkMode ? '#374151' : '#f9fafb',
@@ -664,18 +817,78 @@ function App() {
                 <button onClick={() => handleDeleteCard(card.id)} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>🗑️</button>
               </div>
             </div>
+            
+            {/* Billing Info */}
+            <div style={{ padding: '10px', background: darkMode ? '#1f2937' : '#e5e7eb', borderRadius: '8px', marginBottom: '10px', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>📅 Closing:</span>
+                <strong style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>{card.closingDate} of month</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
+                <span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>💰 Payment:</span>
+                <strong style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>{card.paymentDate} of month</strong>
+              </div>
+            </div>
+
+            {/* Card Details */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px', marginBottom: '10px' }}>
               <div><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Limit:</span> <strong style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>¥{card.limit.toLocaleString()}</strong></div>
               <div><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Available:</span> <strong style={{ color: '#14b8a6' }}>¥{card.available.toLocaleString()}</strong></div>
               <div><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Balance:</span> <strong style={{ color: '#ef4444' }}>¥{card.balance.toLocaleString()}</strong></div>
-              <div><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Due:</span> <strong style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>{card.dueDate}</strong></div>
             </div>
+
+            {/* Payment Cycles */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+              <div style={{ padding: '10px', background: darkMode ? '#059669' : '#ccfbf1', borderRadius: '8px' }}>
+                <p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#0d9488' }}>This Month</p>
+                <p style={{ margin: '3px 0 0 0', fontSize: '16px', fontWeight: '700', color: darkMode ? '#fff' : '#115e59' }}>¥{card.thisCyclePayment.toLocaleString()}</p>
+              </div>
+              <div style={{ padding: '10px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '8px' }}>
+                <p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#0e7490' }}>Next Month</p>
+                <p style={{ margin: '3px 0 0 0', fontSize: '16px', fontWeight: '700', color: darkMode ? '#fff' : '#164e63' }}>¥{card.nextCyclePayment.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Pay Button */}
             <div style={{ display: 'flex', gap: '10px' }}>
-              <input type="number" placeholder="Amount" id={`pay-${card.id}`} defaultValue={card.toPay} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${darkMode ? '#4b5563' : '#e5e7eb'}`, background: darkMode ? '#1f2937' : 'white', color: darkMode ? '#f3f4f6' : '#1f2937' }} />
-              <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-${card.id}`).value) || card.toPay)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Pay</button>
+              <input type="number" placeholder="Amount" id={`pay-${card.id}`} defaultValue={card.thisCyclePayment} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${darkMode ? '#4b5563' : '#e5e7eb'}`, background: darkMode ? '#1f2937' : 'white', color: darkMode ? '#f3f4f6' : '#1f2937' }} />
+              <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-${card.id}`).value) || card.thisCyclePayment)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Pay</button>
             </div>
           </div>
         ))}
+
+        {/* Recent Expenses */}
+        {cardExpenses.length > 0 && (
+          <div style={{ marginTop: '20px' }}>
+            <p style={{ fontSize: '14px', fontWeight: '600', marginBottom: '10px', color: darkMode ? '#f3f4f6' : '#1f2937' }}>📜 Recent Expenses:</p>
+            {cardExpenses.slice(0, 10).map((expense) => (
+              <div key={expense.id} style={{
+                padding: '12px',
+                background: darkMode ? '#374151' : '#f9fafb',
+                borderRadius: '8px',
+                marginBottom: '8px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '500', color: darkMode ? '#f3f4f6' : '#1f2937' }}>
+                    {getCategoryIcon(expense.category)} {expense.category}
+                  </p>
+                  <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#9ca3af' : '#6b7280' }}>
+                    {expense.cardName} • {expense.date}
+                  </p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ margin: 0, fontWeight: '600', color: '#ef4444' }}>¥{expense.amount.toLocaleString()}</p>
+                  <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: expense.cycle === 'This Month' ? '#14b8a6' : '#f59e0b' }}>
+                    {expense.cycle}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </CollapsibleSection>
 
       {/* Trust Funds & Investment */}
@@ -708,28 +921,33 @@ function App() {
       {/* Family Support Manager */}
       <CollapsibleSection title="Family support manager" icon="👨‍👩‍👧" darkMode={darkMode}>
         <div style={{ marginTop: '15px' }}>
+          {/* Parents */}
           <div style={{ padding: '15px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '12px', marginBottom: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <p style={{ margin: 0, fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>🇯🇵 Parents (Japan)</p>
                 <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: darkMode ? '#9ca3af' : '#6b7280' }}>Monthly: ¥{familySupport.parents.amount.toLocaleString()}</p>
-                {familySupport.parents.lastPaid && <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#14b8a6' }}>✓ Last: {familySupport.parents.lastPaid}</p>}
+                <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b' }}>📅 Scheduled: {familySupport.parents.scheduledDate}</p>
+                {familySupport.parents.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#14b8a6' }}>✓ Last: {familySupport.parents.lastPaid}</p>}
               </div>
               <button onClick={() => handleSendFamilySupport('parents', familySupport.parents.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Send</button>
             </div>
           </div>
 
+          {/* Daughter */}
           <div style={{ padding: '15px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '12px', marginBottom: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <p style={{ margin: 0, fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>🇮🇹 Daughter (Italy)</p>
                 <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: darkMode ? '#9ca3af' : '#6b7280' }}>Monthly: ¥{familySupport.daughter.amount.toLocaleString()}</p>
-                {familySupport.daughter.lastPaid && <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#14b8a6' }}>✓ Last: {familySupport.daughter.lastPaid}</p>}
+                <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b' }}>📅 Scheduled: {familySupport.daughter.scheduledDate}</p>
+                {familySupport.daughter.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#14b8a6' }}>✓ Last: {familySupport.daughter.lastPaid}</p>}
               </div>
               <button onClick={() => handleSendFamilySupport('daughter', familySupport.daughter.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Send</button>
             </div>
           </div>
 
+          {/* Other */}
           <div style={{ padding: '15px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
