@@ -146,7 +146,6 @@ function App() {
   const calculateSmartPayment = () => {
     if (cashAvailable === 0) return [];
     
-    // Sort cards by balance (lowest first - snowball method)
     const sortedCards = [...creditCards]
       .filter(card => card.thisCyclePayment > 0)
       .sort((a, b) => a.balance - b.balance);
@@ -154,8 +153,6 @@ function App() {
     const payments = [];
     let remainingCash = cashAvailable;
     const totalPaymentsNeeded = sortedCards.reduce((sum, card) => sum + card.thisCyclePayment, 0);
-    
-    // Calculate percentage to pay based on cash available
     const paymentPercentage = Math.min(100, (cashAvailable / totalPaymentsNeeded) * 100);
     
     sortedCards.forEach(card => {
@@ -241,15 +238,32 @@ function App() {
     }
 
     const closingDate = calculateClosingDate(newCard.paymentDate);
+    
+    const limit = parseFloat(newCard.limit) || 0;
+    const available = parseFloat(newCard.available) || 0;
+    const balance = parseFloat(newCard.balance) || 0;
+    
+    // Auto-calculate missing value
+    let finalAvailable = available;
+    let finalBalance = balance;
+    
+    if (available === 0 && balance === 0) {
+      finalAvailable = limit;
+      finalBalance = 0;
+    } else if (available === 0 && balance > 0) {
+      finalAvailable = limit - balance;
+    } else if (balance === 0 && available > 0) {
+      finalBalance = limit - available;
+    }
 
     if (editingCard) {
       setCreditCards(creditCards.map(card => 
         card.id === editingCard.id ? {
           ...card,
           name: newCard.name,
-          limit: parseFloat(newCard.limit) || card.limit,
-          available: parseFloat(newCard.available) || card.available,
-          balance: parseFloat(newCard.balance) || card.balance,
+          limit: limit,
+          available: finalAvailable,
+          balance: finalBalance,
           paymentDate: newCard.paymentDate,
           closingDate: closingDate,
           thisCyclePayment: parseFloat(newCard.thisCyclePayment) || card.thisCyclePayment,
@@ -257,20 +271,20 @@ function App() {
         } : card
       ));
       setEditingCard(null);
-      alert('✅ Card updated!');
+      alert(`✅ Card updated! Balance: ¥${finalBalance.toLocaleString()}`);
     } else {
       setCreditCards([...creditCards, {
         id: Date.now(),
         name: newCard.name,
-        limit: parseFloat(newCard.limit),
-        available: parseFloat(newCard.available) || 0,
-        balance: parseFloat(newCard.balance) || 0,
+        limit: limit,
+        available: finalAvailable,
+        balance: finalBalance,
         paymentDate: newCard.paymentDate,
         closingDate: closingDate,
         thisCyclePayment: parseFloat(newCard.thisCyclePayment) || 0,
         nextCyclePayment: parseFloat(newCard.nextCyclePayment) || 0
       }]);
-      alert('✅ Card added!');
+      alert(`✅ Card added! Balance: ¥${finalBalance.toLocaleString()}`);
     }
 
     setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
@@ -787,7 +801,7 @@ function App() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px', marginBottom: '10px' }}>
                 <div><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Limit:</span> <strong style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>¥{card.limit.toLocaleString()}</strong></div>
                 <div><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Available:</span> <strong style={{ color: '#14b8a6' }}>¥{card.available.toLocaleString()}</strong></div>
-                <div><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Balance:</span> <strong style={{ color: '#ef4444' }}>¥{card.balance.toLocaleString()}</strong></div>
+                <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Balance:</span> <strong style={{ color: '#ef4444', fontSize: '16px' }}>¥{card.balance.toLocaleString()}</strong></div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
