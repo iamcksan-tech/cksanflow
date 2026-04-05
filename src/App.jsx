@@ -53,7 +53,9 @@ function App() {
   // Main State
   const [cashAvailable, setCashAvailable] = useState(() => loadData('cash', 0));
   const [savings, setSavings] = useState(() => loadData('savings', 0));
-  const [totalDebts, setTotalDebts] = useState(() => loadData('debts', 300000));
+  const [creditCards, setCreditCards] = useState(() => loadData('creditCards', [
+    { id: 1, name: 'SMBC Olive Card', limit: 500000, available: 350000, balance: 150000, paymentDate: '26th', closingDate: '11th', thisCyclePayment: 10000, nextCyclePayment: 0 }
+  ]));
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('ckSanFlow_darkMode');
     return saved ? JSON.parse(saved) : false;
@@ -63,17 +65,22 @@ function App() {
   const [dailyIncomes, setDailyIncomes] = useState(() => loadData('dailyIncomes', []));
   const [todayIncome, setTodayIncome] = useState('');
 
-  // Credit Cards with Smart Billing
-  const [creditCards, setCreditCards] = useState(() => loadData('creditCards', [
-    { id: 1, name: 'SMBC Olive Card', limit: 500000, available: 350000, balance: 150000, paymentDate: '26th', closingDate: '11th', thisCyclePayment: 10000, nextCyclePayment: 0 }
-  ]));
-  const [newCard, setNewCard] = useState({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
-  const [showAddCard, setShowAddCard] = useState(false);
-  const [editingCard, setEditingCard] = useState(null);
-  
   // Card Expenses
   const [cardExpenses, setCardExpenses] = useState(() => loadData('cardExpenses', []));
   const [newExpense, setNewExpense] = useState({ cardId: '', amount: '', category: 'Shopping' });
+  const [newCard, setNewCard] = useState({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
+  const [showAddCard, setShowAddCard] = useState(false);
+  const [editingCard, setEditingCard] = useState(null);
+
+  // Smart Budget Allocation
+  const [budgetAllocation, setBudgetAllocation] = useState(() => loadData('budgetAllocation', {
+    familySupport: 30,
+    creditCards: 25,
+    homeExpenses: 15,
+    carExpenses: 10,
+    healthFunds: 10,
+    trustInvestment: 10
+  }));
 
   // Trust Fund & Investment
   const [investmentPercent, setInvestmentPercent] = useState(() => loadData('investmentPercent', 10));
@@ -97,9 +104,19 @@ function App() {
     food: 0, gas: 0, electricity: 0
   }));
 
-  // Car Expenses
+  // Car Expenses (Capped at ¥2000/day)
   const [carExpenses, setCarExpenses] = useState(() => loadData('carExpenses', {
-    dailyOil: 2000, totalThisMonth: 0
+    dailyOil: 2000, maxDailyOil: 2000, totalThisMonth: 0
+  }));
+
+  // Pensions & Insurance (NEW)
+  const [pensionsInsurance, setPensionsInsurance] = useState(() => loadData('pensionsInsurance', {
+    nationalPension: 0,
+    healthInsurance: 0,
+    carInsurance: 0,
+    lifeInsurance: 0,
+    taxes: 0,
+    total: 0
   }));
 
   // Monthly Summary
@@ -110,6 +127,12 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [appName, setAppName] = useState(() => loadData('appName', 'CkSanFlow'));
+  const [showSmartPay, setShowSmartPay] = useState(false);
+
+  // CALCULATIONS
+  const totalDebts = creditCards.reduce((sum, card) => sum + card.balance, 0);
+  const totalCreditAvailable = creditCards.reduce((sum, card) => sum + card.available, 0);
+  const totalCreditLimit = creditCards.reduce((sum, card) => sum + card.limit, 0);
 
   // Helper: Calculate closing date from payment date
   const calculateClosingDate = (paymentDate) => {
@@ -119,14 +142,49 @@ function App() {
     return closing.toString() + 'th';
   };
 
+  // Helper: Calculate smart payment suggestion
+  const calculateSmartPayment = () => {
+    if (cashAvailable === 0) return [];
+    
+    // Sort cards by balance (lowest first - snowball method)
+    const sortedCards = [...creditCards]
+      .filter(card => card.thisCyclePayment > 0)
+      .sort((a, b) => a.balance - b.balance);
+    
+    const payments = [];
+    let remainingCash = cashAvailable;
+    const totalPaymentsNeeded = sortedCards.reduce((sum, card) => sum + card.thisCyclePayment, 0);
+    
+    // Calculate percentage to pay based on cash available
+    const paymentPercentage = Math.min(100, (cashAvailable / totalPaymentsNeeded) * 100);
+    
+    sortedCards.forEach(card => {
+      const suggestedPayment = Math.round(card.thisCyclePayment * (paymentPercentage / 100));
+      const actualPayment = Math.min(suggestedPayment, remainingCash);
+      
+      if (actualPayment > 0) {
+        payments.push({
+          cardId: card.id,
+          cardName: card.name,
+          suggestedAmount: actualPayment,
+          originalAmount: card.thisCyclePayment,
+          percentage: Math.round((actualPayment / card.thisCyclePayment) * 100)
+        });
+        remainingCash -= actualPayment;
+      }
+    });
+    
+    return payments;
+  };
+
   // Save data
   useEffect(() => {
     saveData('cash', cashAvailable);
     saveData('savings', savings);
-    saveData('debts', totalDebts);
-    saveData('dailyIncomes', dailyIncomes);
     saveData('creditCards', creditCards);
+    saveData('dailyIncomes', dailyIncomes);
     saveData('cardExpenses', cardExpenses);
+    saveData('budgetAllocation', budgetAllocation);
     saveData('investmentPercent', investmentPercent);
     saveData('trustFund', trustFund);
     saveData('spusShares', spusShares);
@@ -134,10 +192,11 @@ function App() {
     saveData('healthFunds', healthFunds);
     saveData('homeExpenses', homeExpenses);
     saveData('carExpenses', carExpenses);
+    saveData('pensionsInsurance', pensionsInsurance);
     saveData('monthlyIncome', monthlyIncome);
     saveData('monthlyExpenses', monthlyExpenses);
     saveData('appName', appName);
-  }, [cashAvailable, savings, totalDebts, dailyIncomes, creditCards, cardExpenses, investmentPercent, trustFund, spusShares, familySupport, healthFunds, homeExpenses, carExpenses, monthlyIncome, monthlyExpenses, appName]);
+  }, [cashAvailable, savings, creditCards, dailyIncomes, cardExpenses, budgetAllocation, investmentPercent, trustFund, spusShares, familySupport, healthFunds, homeExpenses, carExpenses, pensionsInsurance, monthlyIncome, monthlyExpenses, appName]);
 
   // Dark mode
   useEffect(() => {
@@ -315,8 +374,28 @@ function App() {
     }));
 
     setCashAvailable(cashAvailable - amount);
-    setTotalDebts(totalDebts - amount);
+    setMonthlyExpenses(monthlyExpenses + amount);
     alert(`✅ ¥${amount.toLocaleString()} paid!`);
+  };
+
+  const handleSmartPayAll = () => {
+    const payments = calculateSmartPayment();
+    if (payments.length === 0) {
+      alert('❌ No payments to make or insufficient cash!');
+      return;
+    }
+
+    let totalToPay = payments.reduce((sum, p) => sum + p.suggestedAmount, 0);
+    if (totalToPay > cashAvailable) {
+      alert('❌ Insufficient cash for all payments!');
+      return;
+    }
+
+    payments.forEach(payment => {
+      handlePayCard(payment.cardId, payment.suggestedAmount);
+    });
+
+    alert(`✅ Smart payment complete! ¥${totalToPay.toLocaleString()} paid across ${payments.length} cards`);
   };
 
   const handleSendFamilySupport = (type, amount) => {
@@ -376,6 +455,11 @@ function App() {
       return;
     }
 
+    if (carExpenses.dailyOil > carExpenses.maxDailyOil) {
+      alert(`⚠️ Daily oil expense capped at ¥${carExpenses.maxDailyOil.toLocaleString()}`);
+      return;
+    }
+
     setCarExpenses({
       ...carExpenses,
       totalThisMonth: carExpenses.totalThisMonth + carExpenses.dailyOil
@@ -384,6 +468,23 @@ function App() {
     setCashAvailable(cashAvailable - carExpenses.dailyOil);
     setMonthlyExpenses(monthlyExpenses + carExpenses.dailyOil);
     alert(`✅ ¥${carExpenses.dailyOil.toLocaleString()} recorded!`);
+  };
+
+  const handleAddPensionInsurance = (type, amount) => {
+    if (amount > cashAvailable) {
+      alert('❌ Insufficient cash!');
+      return;
+    }
+
+    setPensionsInsurance({
+      ...pensionsInsurance,
+      [type]: pensionsInsurance[type] + amount,
+      total: pensionsInsurance.total + amount
+    });
+
+    setCashAvailable(cashAvailable - amount);
+    setMonthlyExpenses(monthlyExpenses + amount);
+    alert(`✅ ¥${amount.toLocaleString()} recorded!`);
   };
 
   const handleReset = () => {
@@ -424,6 +525,8 @@ function App() {
     return icons[category] || '📦';
   };
 
+  const smartPayments = calculateSmartPayment();
+
   return (
     <div className="App" style={{
       minHeight: '100vh',
@@ -443,7 +546,7 @@ function App() {
             💰 {appName}
           </h1>
           <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: darkMode ? '#9ca3af' : '#6b7280' }}>
-            Your Financial Freedom Journey
+            Smart Financial Management
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -475,22 +578,30 @@ function App() {
         </div>
       )}
 
-      {/* Top 3 Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+      {/* Dashboard - 4 Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
         <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #ccfbf1 0%, #f0fdfa 100%)', padding: '20px 15px', borderRadius: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '24px', marginBottom: '8px' }}>⬆️</div>
-          <p style={{ margin: 0, fontSize: '12px', color: darkMode ? '#fff' : '#0d9488', fontWeight: '500' }}>Cash available</p>
-          <p style={{ margin: '5px 0 0 0', fontSize: '20px', fontWeight: '700', color: darkMode ? '#fff' : '#115e59' }}>¥{cashAvailable.toLocaleString()}</p>
+          <div style={{ fontSize: '24px', marginBottom: '8px' }}>💵</div>
+          <p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#0d9488', fontWeight: '500' }}>Cash Available</p>
+          <p style={{ margin: '5px 0 0 0', fontSize: '22px', fontWeight: '700', color: darkMode ? '#fff' : '#115e59' }}>¥{cashAvailable.toLocaleString()}</p>
         </div>
+
         <div style={{ background: darkMode ? 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)' : 'linear-gradient(135deg, #cffafe 0%, #ecfeff 100%)', padding: '20px 15px', borderRadius: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '24px', marginBottom: '8px' }}>💰</div>
-          <p style={{ margin: 0, fontSize: '12px', color: darkMode ? '#fff' : '#0e7490', fontWeight: '500' }}>Savings</p>
-          <p style={{ margin: '5px 0 0 0', fontSize: '20px', fontWeight: '700', color: darkMode ? '#fff' : '#164e63' }}>¥{savings.toLocaleString()}</p>
+          <div style={{ fontSize: '24px', marginBottom: '8px' }}>💳</div>
+          <p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#0e7490', fontWeight: '500' }}>Credit Available</p>
+          <p style={{ margin: '5px 0 0 0', fontSize: '22px', fontWeight: '700', color: darkMode ? '#fff' : '#164e63' }}>¥{totalCreditAvailable.toLocaleString()}</p>
         </div>
+
         <div style={{ background: darkMode ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' : 'linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%)', padding: '20px 15px', borderRadius: '16px', textAlign: 'center' }}>
           <div style={{ fontSize: '24px', marginBottom: '8px' }}>⚠️</div>
-          <p style={{ margin: 0, fontSize: '12px', color: darkMode ? '#fff' : '#b91c1c', fontWeight: '500' }}>Total debts</p>
-          <p style={{ margin: '5px 0 0 0', fontSize: '20px', fontWeight: '700', color: darkMode ? '#fff' : '#7f1d1d' }}>¥{totalDebts.toLocaleString()}</p>
+          <p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#b91c1c', fontWeight: '500' }}>Total Debts</p>
+          <p style={{ margin: '5px 0 0 0', fontSize: '22px', fontWeight: '700', color: darkMode ? '#fff' : '#7f1d1d' }}>¥{totalDebts.toLocaleString()}</p>
+        </div>
+
+        <div style={{ background: darkMode ? 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)' : 'linear-gradient(135deg, #ddd6fe 0%, #f3e8ff 100%)', padding: '20px 15px', borderRadius: '16px', textAlign: 'center' }}>
+          <div style={{ fontSize: '24px', marginBottom: '8px' }}>💰</div>
+          <p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#6d28d9', fontWeight: '500' }}>Savings</p>
+          <p style={{ margin: '5px 0 0 0', fontSize: '22px', fontWeight: '700', color: darkMode ? '#fff' : '#5b21b6' }}>¥{savings.toLocaleString()}</p>
         </div>
       </div>
 
@@ -514,10 +625,69 @@ function App() {
         )}
       </CollapsibleSection>
 
+      {/* Smart Payment Suggestion */}
+      {smartPayments.length > 0 && (
+        <CollapsibleSection title="💡 Smart Payment Suggestion" icon="🎯" darkMode={darkMode} defaultOpen={false}>
+          <div style={{ marginTop: '15px' }}>
+            <p style={{ fontSize: '14px', color: darkMode ? '#9ca3af' : '#6b7280', marginBottom: '15px' }}>
+              Based on your cash (¥{cashAvailable.toLocaleString()}), here's the optimal payment plan:
+            </p>
+            {smartPayments.map((payment, index) => (
+              <div key={index} style={{
+                padding: '12px',
+                background: darkMode ? '#374151' : '#f9fafb',
+                borderRadius: '8px',
+                marginBottom: '8px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <p style={{ margin: 0, fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>{payment.cardName}</p>
+                  <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#9ca3af' : '#6b7280' }}>
+                    Pay {payment.percentage}% (¥{payment.suggestedAmount.toLocaleString()} of ¥{payment.originalAmount.toLocaleString()})
+                  </p>
+                </div>
+                <button
+                  onClick={() => handlePayCard(payment.cardId, payment.suggestedAmount)}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#14b8a6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '14px'
+                  }}
+                >
+                  Pay
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={handleSmartPayAll}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: '#14b8a6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontWeight: '700',
+                fontSize: '16px',
+                marginTop: '10px'
+              }}
+            >
+              💰 Pay All Smartly (¥{smartPayments.reduce((sum, p) => sum + p.suggestedAmount, 0).toLocaleString()})
+            </button>
+          </div>
+        </CollapsibleSection>
+      )}
+
       {/* Credit Cards */}
       <CollapsibleSection title="Credit cards" icon="💳" darkMode={darkMode} defaultOpen={true}>
-        
-        {/* ADD CARD BUTTON - TOP (Always Visible) */}
         <button
           onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }}
           style={{
@@ -639,7 +809,6 @@ function App() {
           ))}
         </div>
 
-        {/* ADD CARD BUTTON - BOTTOM (Always Visible) */}
         <button
           onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }}
           style={{
@@ -662,7 +831,6 @@ function App() {
           ➕ Add Another Card
         </button>
 
-        {/* Recent Expenses */}
         {cardExpenses.length > 0 && (
           <div style={{ marginTop: '20px' }}>
             <p style={{ fontSize: '14px', fontWeight: '600', marginBottom: '10px', color: darkMode ? '#f3f4f6' : '#1f2937' }}>📜 Recent Expenses:</p>
@@ -777,21 +945,45 @@ function App() {
         </div>
       </CollapsibleSection>
 
-      {/* Car Expenses */}
+      {/* Car Expenses (Capped at ¥2000) */}
       <CollapsibleSection title="Car expenses" icon="🚗" darkMode={darkMode}>
         <div style={{ marginTop: '15px' }}>
           <div style={{ padding: '15px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '12px', marginBottom: '15px' }}>
             <p style={{ margin: 0, fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>⛽ Daily Oil</p>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
               <span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Per Day:</span>
-              <strong style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>¥{carExpenses.dailyOil.toLocaleString()}</strong>
+              <strong style={{ color: '#f59e0b' }}>¥{carExpenses.dailyOil.toLocaleString()} (Max: ¥{carExpenses.maxDailyOil.toLocaleString()})</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
               <span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>This Month:</span>
               <strong style={{ color: '#ef4444' }}>¥{carExpenses.totalThisMonth.toLocaleString()}</strong>
             </div>
           </div>
-          <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '16px' }}>Add Today's Oil (¥{carExpenses.dailyOil.toLocaleString()})</button>
+          <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '16px' }}>
+            Add Today's Oil (¥{carExpenses.dailyOil.toLocaleString()})
+          </button>
+        </div>
+      </CollapsibleSection>
+
+      {/* Pensions & Insurance (NEW) */}
+      <CollapsibleSection title="Pensions & Insurance" icon="🛡️" darkMode={darkMode}>
+        <div style={{ marginTop: '15px', display: 'grid', gap: '10px' }}>
+          {[
+            { key: 'nationalPension', label: '🏛️ National Pension', icon: '🏛️' },
+            { key: 'healthInsurance', label: '🏥 Health Insurance', icon: '🏥' },
+            { key: 'carInsurance', label: '🚗 Car Insurance', icon: '🚗' },
+            { key: 'lifeInsurance', label: '💼 Life Insurance', icon: '💼' },
+            { key: 'taxes', label: '📋 Taxes', icon: '📋' }
+          ].map((item) => (
+            <div key={item.key} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <span style={{ width: '150px', color: darkMode ? '#f3f4f6' : '#1f2937', fontWeight: '500', fontSize: '14px' }}>{item.label}</span>
+              <input type="number" placeholder="Amount" id={`pension-${item.key}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`, background: darkMode ? '#374151' : '#f9fafb', color: darkMode ? '#f3f4f6' : '#1f2937' }} />
+              <button onClick={() => handleAddPensionInsurance(item.key, parseFloat(document.getElementById(`pension-${item.key}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>Add</button>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: '15px', padding: '15px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '12px' }}>
+          <p style={{ margin: 0, fontSize: '14px', color: darkMode ? '#fff' : '#6d28d9' }}>Total This Month: <strong style={{ fontSize: '18px' }}>¥{pensionsInsurance.total.toLocaleString()}</strong></p>
         </div>
       </CollapsibleSection>
 
@@ -815,7 +1007,7 @@ function App() {
 
       {/* Footer */}
       <footer style={{ textAlign: 'center', padding: '20px', color: darkMode ? '#6b7280' : '#9ca3af', fontSize: '13px', marginTop: '20px' }}>
-        <p style={{ margin: 0 }}>© 2026 {appName} • Built with ❤️</p>
+        <p style={{ margin: 0 }}>© 2026 {appName} • Smart Financial Management</p>
       </footer>
     </div>
   );
