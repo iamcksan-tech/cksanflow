@@ -1,4 +1,4 @@
-import { clearAllData } from './DataStorage';
+import { clearAllData } from './dataStorage';
 
 function Settings({ onReset, darkMode, setDarkMode }) {
   const handleReset = () => {
