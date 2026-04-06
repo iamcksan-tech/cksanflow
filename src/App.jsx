@@ -7,12 +7,12 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
     <div style={{
-      background: darkMode ? '#1f2937' : 'white',
+      background: darkMode ? '#1e293b' : 'white',
       borderRadius: '20px',
       marginBottom: '20px',
       overflow: 'hidden',
       boxShadow: darkMode ? '0 10px 40px rgba(0,0,0,0.4)' : '0 10px 40px rgba(0,0,0,0.08)',
-      border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`
+      border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`
     }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -25,7 +25,7 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
           justifyContent: 'space-between',
           alignItems: 'center',
           cursor: 'pointer',
-          color: darkMode ? '#f3f4f6' : '#1f2937',
+          color: darkMode ? '#f8fafc' : '#0f172a',
           transition: 'all 0.3s ease'
         }}
       >
@@ -35,21 +35,58 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
         </div>
         <span style={{ fontSize: '24px', color: '#14b8a6', fontWeight: '300' }}>{isOpen ? '−' : '+'}</span>
       </button>
-      {isOpen && <div style={{ padding: '0 24px 24px 24px', borderTop: `1px solid ${darkMode ? '#374151' : '#f3f4f6'}` }}>{children}</div>}
+      {isOpen && <div style={{ padding: '0 24px 24px 24px', borderTop: `1px solid ${darkMode ? '#334155' : '#f1f5f9'}` }}>{children}</div>}
+    </div>
+  );
+}
+
+// Tooltip Component
+function Tooltip({ text, darkMode }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }} onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+      <span style={{ marginLeft: '6px', fontSize: '14px', color: darkMode ? '#64748b' : '#94a3b8', cursor: 'help' }}>ⓘ</span>
+      {show && (
+        <div style={{
+          position: 'absolute',
+          bottom: '100%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: darkMode ? '#0f172a' : '#1e293b',
+          color: 'white',
+          padding: '10px 14px',
+          borderRadius: '10px',
+          fontSize: '13px',
+          whiteSpace: 'nowrap',
+          zIndex: 1000,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          marginBottom: '8px'
+        }}>
+          {text}
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            border: '6px solid transparent',
+            borderTop: `6px solid ${darkMode ? '#0f172a' : '#1e293b'}`
+          }}></div>
+        </div>
+      )}
     </div>
   );
 }
 
 // Progress Chart Component
-function ProgressChart({ current, goal, label, color = '#14b8a6', darkMode, hideNumbers }) {
+function ProgressChart({ current, goal, label, color = '#14b8a6', darkMode, hideNumbers, onEdit }) {
   const percentage = Math.min(100, Math.round((current / goal) * 100));
   return (
     <div style={{ marginTop: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px' }}>
-        <span style={{ color: darkMode ? '#9ca3af' : '#6b7280', fontWeight: '500' }}>{label}</span>
-        <span style={{ fontWeight: '700', color: darkMode ? '#f3f4f6' : '#1f2937' }}>{hideNumbers ? '••••' : `${percentage}%`}</span>
+        <span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>{label}</span>
+        <span style={{ fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{hideNumbers ? '••••' : `${percentage}%`}</span>
       </div>
-      <div style={{ width: '100%', height: '14px', background: darkMode ? '#374151' : '#e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+      <div style={{ width: '100%', height: '14px', background: darkMode ? '#334155' : '#e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
         <div style={{
           width: `${percentage}%`,
           height: '100%',
@@ -59,9 +96,9 @@ function ProgressChart({ current, goal, label, color = '#14b8a6', darkMode, hide
           boxShadow: `0 0 10px ${color}55`
         }}></div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '13px' }}>
-        <span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>{hideNumbers ? '¥••••' : `¥${current?.toLocaleString()}`}</span>
-        <span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>{hideNumbers ? 'Goal: ¥••••' : `Goal: ¥${goal?.toLocaleString()}`}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '13px', alignItems: 'center' }}>
+        <span style={{ color: darkMode ? '#94a3b8' : '#647480', cursor: 'pointer' }} onClick={() => onEdit && onEdit('current')}>{hideNumbers ? '¥••••' : `¥${current?.toLocaleString()}`}</span>
+        <span style={{ color: darkMode ? '#94a3b8' : '#647480', cursor: 'pointer' }} onClick={() => onEdit && onEdit('goal')}>{hideNumbers ? 'Goal: ¥••••' : `Goal: ¥${goal?.toLocaleString()}`}</span>
       </div>
     </div>
   );
@@ -90,8 +127,8 @@ function SpendingPieChart({ data, darkMode, hideNumbers }) {
   });
 
   return (
-    <div style={{ marginTop: '20px', padding: '20px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '16px' }}>
-      <h4 style={{ margin: '0 0 20px 0', color: darkMode ? '#f3f4f6' : '#1f2937', fontSize: '16px', fontWeight: '600' }}>📊 Spending by Category</h4>
+    <div style={{ marginTop: '20px', padding: '20px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '16px' }}>
+      <h4 style={{ margin: '0 0 20px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '600' }}>📊 Spending by Category</h4>
       
       {/* Pie Chart */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
@@ -108,12 +145,12 @@ function SpendingPieChart({ data, darkMode, hideNumbers }) {
                 key={index}
                 d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
                 fill={segment.color}
-                stroke={darkMode ? '#1f2937' : 'white'}
+                stroke={darkMode ? '#0f172a' : 'white'}
                 strokeWidth="2"
               />
             );
           })}
-          <circle cx="50" cy="50" r="25" fill={darkMode ? '#1f2937' : 'white'} />
+          <circle cx="50" cy="50" r="25" fill={darkMode ? '#0f172a' : 'white'} />
         </svg>
       </div>
 
@@ -122,8 +159,8 @@ function SpendingPieChart({ data, darkMode, hideNumbers }) {
         {segments.map((segment, index) => (
           <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
             <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: segment.color }}></div>
-            <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937', flex: 1 }}>{segment.category}</span>
-            <span style={{ fontWeight: '600', color: darkMode ? '#9ca3af' : '#6b7280' }}>{hideNumbers ? '¥••••' : `¥${segment.amount.toLocaleString()}`}</span>
+            <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', flex: 1 }}>{segment.category}</span>
+            <span style={{ fontWeight: '600', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? '¥••••' : `¥${segment.amount.toLocaleString()}`}</span>
           </div>
         ))}
       </div>
@@ -131,11 +168,65 @@ function SpendingPieChart({ data, darkMode, hideNumbers }) {
   );
 }
 
+// Editable Number Component
+function EditableNumber({ value, onChange, prefix = '¥', darkMode, hideNumbers, fontSize = '16px' }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(value.toString());
+
+  const handleSave = () => {
+    const num = parseFloat(editValue.replace(/,/g, ''));
+    if (!isNaN(num)) {
+      onChange(num);
+    }
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        type="number"
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+        autoFocus
+        style={{
+          background: darkMode ? '#0f172a' : 'white',
+          border: `2px solid #14b8a6`,
+          borderRadius: '8px',
+          padding: '6px 10px',
+          color: darkMode ? '#f8fafc' : '#0f172a',
+          fontSize: fontSize,
+          fontWeight: '700',
+          width: '120px',
+          outline: 'none'
+        }}
+      />
+    );
+  }
+
+  return (
+    <span
+      onClick={() => setIsEditing(true)}
+      style={{ cursor: 'pointer', fontSize: fontSize, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}
+      title="Click to edit"
+    >
+      {hideNumbers ? '••••' : `${prefix}${value.toLocaleString()}`}
+    </span>
+  );
+}
+
 function App() {
-  // Main State
-  const [cashAvailable, setCashAvailable] = useState(() => loadData('cash', 0));
-  const [savings, setSavings] = useState(() => loadData('savings', 0));
-  const [creditCards, setCreditCards] = useState(() => loadData('creditCards', [
+  // Month Management
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const saved = localStorage.getItem('ckSanFlow_currentMonth');
+    return saved || new Date().toISOString().slice(0, 7); // YYYY-MM
+  });
+
+  // Main State - Load from month-specific storage
+  const [cashAvailable, setCashAvailable] = useState(() => loadData(`cash_${currentMonth}`, 0));
+  const [savings, setSavings] = useState(() => loadData(`savings_${currentMonth}`, 0));
+  const [creditCards, setCreditCards] = useState(() => loadData(`creditCards_${currentMonth}`, [
     { id: 1, name: 'SMBC Olive Card', limit: 500000, available: 350000, balance: 150000, paymentDate: '26th', closingDate: '11th', thisCyclePayment: 10000, nextCyclePayment: 0 }
   ]));
   const [darkMode, setDarkMode] = useState(() => {
@@ -148,18 +239,18 @@ function App() {
   });
 
   // Daily Income
-  const [dailyIncomes, setDailyIncomes] = useState(() => loadData('dailyIncomes', []));
+  const [dailyIncomes, setDailyIncomes] = useState(() => loadData(`dailyIncomes_${currentMonth}`, []));
   const [todayIncome, setTodayIncome] = useState('');
 
   // Card Expenses
-  const [cardExpenses, setCardExpenses] = useState(() => loadData('cardExpenses', []));
+  const [cardExpenses, setCardExpenses] = useState(() => loadData(`cardExpenses_${currentMonth}`, []));
   const [newExpense, setNewExpense] = useState({ cardId: '', amount: '', category: 'Shopping' });
   const [newCard, setNewCard] = useState({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
   const [showAddCard, setShowAddCard] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
 
   // Monthly Goals
-  const [monthlyGoals, setMonthlyGoals] = useState(() => loadData('monthlyGoals', [
+  const [monthlyGoals, setMonthlyGoals] = useState(() => loadData(`monthlyGoals_${currentMonth}`, [
     { id: 1, name: 'Emergency Fund', target: 200000, current: 50000, color: '#14b8a6', priority: 'high' },
     { id: 2, name: 'Vacation', target: 150000, current: 30000, color: '#8b5cf6', priority: 'medium' },
     { id: 3, name: 'New Laptop', target: 100000, current: 10000, color: '#f59e0b', priority: 'low' }
@@ -171,63 +262,131 @@ function App() {
 
   // Trust Fund & Investment
   const [investmentPercent, setInvestmentPercent] = useState(() => loadData('investmentPercent', 10));
-  const [trustFund, setTrustFund] = useState(() => loadData('trustFund', 50000));
-  const [spusShares, setSpusShares] = useState(() => loadData('spusShares', 0));
+  const [trustFund, setTrustFund] = useState(() => loadData(`trustFund_${currentMonth}`, 50000));
+  const [spusShares, setSpusShares] = useState(() => loadData(`spusShares_${currentMonth}`, 0));
 
   // Family Support
-  const [familySupport, setFamilySupport] = useState(() => loadData('familySupport', {
+  const [familySupport, setFamilySupport] = useState(() => loadData(`familySupport_${currentMonth}`, {
     parents: { amount: 75000, scheduledDate: '19th', lastPaid: '' },
     daughter: { amount: 25000, scheduledDate: 'anytime', lastPaid: '' },
     other: { amount: 0, scheduledDate: 'anytime', lastPaid: '' }
   }));
 
   // Health Funds
-  const [healthFunds, setHealthFunds] = useState(() => loadData('healthFunds', {
+  const [healthFunds, setHealthFunds] = useState(() => loadData(`healthFunds_${currentMonth}`, {
     hairTransplant: { goal: 500000, current: 0 }
   }));
 
   // Home Expenses
-  const [homeExpenses, setHomeExpenses] = useState(() => loadData('homeExpenses', { food: 0, gas: 0, electricity: 0 }));
+  const [homeExpenses, setHomeExpenses] = useState(() => loadData(`homeExpenses_${currentMonth}`, { food: 0, gas: 0, electricity: 0 }));
 
-  // Car Expenses (Capped at ¥2000/day)
-  const [carExpenses, setCarExpenses] = useState(() => loadData('carExpenses', { dailyOil: 2000, maxDailyOil: 2000, totalThisMonth: 0 }));
+  // Car Expenses
+  const [carExpenses, setCarExpenses] = useState(() => loadData(`carExpenses_${currentMonth}`, { dailyOil: 2000, maxDailyOil: 2000, totalThisMonth: 0 }));
 
   // Pensions & Insurance
-  const [pensionsInsurance, setPensionsInsurance] = useState(() => loadData('pensionsInsurance', {
+  const [pensionsInsurance, setPensionsInsurance] = useState(() => loadData(`pensionsInsurance_${currentMonth}`, {
     nationalPension: 0, healthInsurance: 0, carInsurance: 0, lifeInsurance: 0, taxes: 0, total: 0
   }));
 
   // Monthly Summary
-  const [monthlyIncome, setMonthlyIncome] = useState(() => loadData('monthlyIncome', 0));
-  const [monthlyExpenses, setMonthlyExpenses] = useState(() => loadData('monthlyExpenses', 0));
+  const [monthlyIncome, setMonthlyIncome] = useState(() => loadData(`monthlyIncome_${currentMonth}`, 0));
+  const [monthlyExpenses, setMonthlyExpenses] = useState(() => loadData(`monthlyExpenses_${currentMonth}`, 0));
 
   // Settings
   const [showSettings, setShowSettings] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [appName, setAppName] = useState(() => loadData('appName', 'CkSanFlow'));
 
+  // Warning States
+  const [showDailyAvgWarning, setShowDailyAvgWarning] = useState(false);
+  const [showCreditWarning, setShowCreditWarning] = useState(false);
+
   // CALCULATIONS
   const totalDebts = creditCards.reduce((sum, card) => sum + card.balance, 0);
-  const totalCreditAvailable = creditCards.reduce((sum, card) => sum + card.available, 0);
+  const totalCreditLimit = creditCards.reduce((sum, card) => sum + card.limit, 0);
+  const totalCreditUsed = totalCreditLimit - creditCards.reduce((sum, card) => sum + card.available, 0);
   const totalGoalsProgress = monthlyGoals.reduce((sum, goal) => sum + goal.current, 0);
   const totalGoalsTarget = monthlyGoals.reduce((sum, goal) => sum + goal.target, 0);
   
   // Daily Income Calculations
-  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const thisMonthIncomes = dailyIncomes.filter(inc => inc.date.startsWith(currentMonth));
+  const thisMonthIncomes = dailyIncomes;
   const totalDaysEarned = thisMonthIncomes.length;
   const totalIncomeThisMonth = thisMonthIncomes.reduce((sum, inc) => sum + inc.amount, 0);
   const dailyAverageIncome = totalDaysEarned > 0 ? Math.round(totalIncomeThisMonth / totalDaysEarned) : 0;
   
   // 10% Savings Rule
   const recommendedSavings = Math.round(monthlyIncome * 0.10);
-  const currentSavingsThisMonth = savings; // Could track monthly savings separately
   
-  // Spending by Category (from card expenses)
+  // Spending by Category
   const spendingByCategory = {};
   cardExpenses.forEach(expense => {
     spendingByCategory[expense.category] = (spendingByCategory[expense.category] || 0) + expense.amount;
   });
+
+  // Check Warnings
+  useEffect(() => {
+    // Daily average warning: if spending > 10% over (income / 30)
+    const dailyBudget = monthlyIncome / 30;
+    const dailySpending = monthlyExpenses / 30;
+    setShowDailyAvgWarning(dailySpending > dailyBudget * 1.10 && monthlyIncome > 0);
+    
+    // Credit warning: if credit used > 80%
+    const creditUsedPercent = totalCreditLimit > 0 ? (totalCreditUsed / totalCreditLimit) * 100 : 0;
+    setShowCreditWarning(creditUsedPercent > 80);
+  }, [monthlyIncome, monthlyExpenses, totalCreditUsed, totalCreditLimit]);
+
+  // Save data to month-specific storage
+  useEffect(() => {
+    saveData(`cash_${currentMonth}`, cashAvailable);
+    saveData(`savings_${currentMonth}`, savings);
+    saveData(`creditCards_${currentMonth}`, creditCards);
+    saveData(`dailyIncomes_${currentMonth}`, dailyIncomes);
+    saveData(`cardExpenses_${currentMonth}`, cardExpenses);
+    saveData(`monthlyGoals_${currentMonth}`, monthlyGoals);
+    saveData(`trustFund_${currentMonth}`, trustFund);
+    saveData(`spusShares_${currentMonth}`, spusShares);
+    saveData(`familySupport_${currentMonth}`, familySupport);
+    saveData(`healthFunds_${currentMonth}`, healthFunds);
+    saveData(`homeExpenses_${currentMonth}`, homeExpenses);
+    saveData(`carExpenses_${currentMonth}`, carExpenses);
+    saveData(`pensionsInsurance_${currentMonth}`, pensionsInsurance);
+    saveData(`monthlyIncome_${currentMonth}`, monthlyIncome);
+    saveData(`monthlyExpenses_${currentMonth}`, monthlyExpenses);
+    saveData('appName', appName);
+    saveData('hideNumbers', hideNumbers);
+  }, [cashAvailable, savings, creditCards, dailyIncomes, cardExpenses, monthlyGoals, trustFund, spusShares, familySupport, healthFunds, homeExpenses, carExpenses, pensionsInsurance, monthlyIncome, monthlyExpenses, appName, hideNumbers, currentMonth]);
+
+  // Dark mode
+  useEffect(() => {
+    const saved = localStorage.getItem('ckSanFlow_darkMode');
+    if (saved) {
+      const isDark = JSON.parse(saved);
+      setDarkMode(isDark);
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    }
+  }, []);
+
+  // Month change handler
+  const handleMonthChange = (newMonth) => {
+    setCurrentMonth(newMonth);
+    localStorage.setItem('ckSanFlow_currentMonth', newMonth);
+    // Reload data for new month
+    setCashAvailable(loadData(`cash_${newMonth}`, 0));
+    setSavings(loadData(`savings_${newMonth}`, 0));
+    setCreditCards(loadData(`creditCards_${newMonth}`, []));
+    setDailyIncomes(loadData(`dailyIncomes_${newMonth}`, []));
+    setCardExpenses(loadData(`cardExpenses_${newMonth}`, []));
+    setMonthlyGoals(loadData(`monthlyGoals_${newMonth}`, []));
+    setTrustFund(loadData(`trustFund_${newMonth}`, 50000));
+    setSpusShares(loadData(`spusShares_${newMonth}`, 0));
+    setFamilySupport(loadData(`familySupport_${newMonth}`, { parents: { amount: 75000, scheduledDate: '19th', lastPaid: '' }, daughter: { amount: 25000, scheduledDate: 'anytime', lastPaid: '' }, other: { amount: 0, scheduledDate: 'anytime', lastPaid: '' } }));
+    setHealthFunds(loadData(`healthFunds_${newMonth}`, { hairTransplant: { goal: 500000, current: 0 } }));
+    setHomeExpenses(loadData(`homeExpenses_${newMonth}`, { food: 0, gas: 0, electricity: 0 }));
+    setCarExpenses(loadData(`carExpenses_${newMonth}`, { dailyOil: 2000, maxDailyOil: 2000, totalThisMonth: 0 }));
+    setPensionsInsurance(loadData(`pensionsInsurance_${newMonth}`, { nationalPension: 0, healthInsurance: 0, carInsurance: 0, lifeInsurance: 0, taxes: 0, total: 0 }));
+    setMonthlyIncome(loadData(`monthlyIncome_${newMonth}`, 0));
+    setMonthlyExpenses(loadData(`monthlyExpenses_${newMonth}`, 0));
+  };
 
   // Helper: Calculate closing date from payment date
   const calculateClosingDate = (paymentDate) => {
@@ -236,38 +395,6 @@ function App() {
     if (closing <= 0) closing += 30;
     return closing.toString() + 'th';
   };
-
-  // Save data
-  useEffect(() => {
-    saveData('cash', cashAvailable);
-    saveData('savings', savings);
-    saveData('creditCards', creditCards);
-    saveData('dailyIncomes', dailyIncomes);
-    saveData('cardExpenses', cardExpenses);
-    saveData('monthlyGoals', monthlyGoals);
-    saveData('goalAllocationPercent', goalAllocationPercent);
-    saveData('investmentPercent', investmentPercent);
-    saveData('trustFund', trustFund);
-    saveData('spusShares', spusShares);
-    saveData('familySupport', familySupport);
-    saveData('healthFunds', healthFunds);
-    saveData('homeExpenses', homeExpenses);
-    saveData('carExpenses', carExpenses);
-    saveData('pensionsInsurance', pensionsInsurance);
-    saveData('monthlyIncome', monthlyIncome);
-    saveData('monthlyExpenses', monthlyExpenses);
-    saveData('appName', appName);
-    saveData('hideNumbers', hideNumbers);
-  }, [cashAvailable, savings, creditCards, dailyIncomes, cardExpenses, monthlyGoals, goalAllocationPercent, investmentPercent, trustFund, spusShares, familySupport, healthFunds, homeExpenses, carExpenses, pensionsInsurance, monthlyIncome, monthlyExpenses, appName, hideNumbers]);
-
-  // Dark mode & hide numbers
-  useEffect(() => {
-    const saved = localStorage.getItem('ckSanFlow_hideNumbers');
-    if (saved) {
-      const isHidden = JSON.parse(saved);
-      setHideNumbers(isHidden);
-    }
-  }, []);
 
   // Handlers
   const handleAddIncome = () => {
@@ -300,22 +427,11 @@ function App() {
     alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} added!`);
   };
 
-  // Delete Recent Income
   const handleDeleteRecentIncome = (incomeId) => {
     const incomeToDelete = dailyIncomes.find(inc => inc.id === incomeId);
     if (!incomeToDelete) return;
     
-    if (!confirm(`⚠️ Delete this income entry?
-
-Amount: ¥${incomeToDelete.amount.toLocaleString()}
-Date: ${incomeToDelete.date}
-
-This will reverse:
-- Cash: -¥${incomeToDelete.amount.toLocaleString()}
-- Investment: -¥${Math.round(incomeToDelete.amount * (investmentPercent / 100)).toLocaleString()}
-- Goals: -¥${Math.round(incomeToDelete.amount * (goalAllocationPercent / 100)).toLocaleString()}`)) {
-      return;
-    }
+    if (!confirm(`⚠️ Delete this income entry? Amount: ¥${incomeToDelete.amount.toLocaleString()}`)) return;
 
     const investAmount = Math.round(incomeToDelete.amount * (investmentPercent / 100));
     const goalAmount = Math.round(incomeToDelete.amount * (goalAllocationPercent / 100));
@@ -354,10 +470,10 @@ This will reverse:
     if (editingCard) {
       setCreditCards(creditCards.map(card => card.id === editingCard.id ? { ...card, name: newCard.name, limit, available: finalAvailable, balance: finalBalance, paymentDate: newCard.paymentDate, closingDate, thisCyclePayment: parseFloat(newCard.thisCyclePayment) || card.thisCyclePayment, nextCyclePayment: parseFloat(newCard.nextCyclePayment) || card.nextCyclePayment } : card));
       setEditingCard(null);
-      alert(`✅ Card updated! Balance: ¥${hideNumbers ? '••••' : finalBalance.toLocaleString()}`);
+      alert(`✅ Card updated!`);
     } else {
       setCreditCards([...creditCards, { id: Date.now(), name: newCard.name, limit, available: finalAvailable, balance: finalBalance, paymentDate: newCard.paymentDate, closingDate, thisCyclePayment: parseFloat(newCard.thisCyclePayment) || 0, nextCyclePayment: parseFloat(newCard.nextCyclePayment) || 0 }]);
-      alert(`✅ Card added! Balance: ¥${hideNumbers ? '••••' : finalBalance.toLocaleString()}`);
+      alert(`✅ Card added!`);
     }
     setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
     setShowAddCard(false);
@@ -390,7 +506,7 @@ This will reverse:
     setCardExpenses([{ id: Date.now(), cardId: parseInt(cardId), cardName: card.name, amount: expenseAmount, category, date: today, cycle: isCurrentCycle ? 'This Month' : 'Next Month' }, ...cardExpenses]);
     setMonthlyExpenses(monthlyExpenses + expenseAmount);
     setNewExpense({ cardId: '', amount: '', category: 'Shopping' });
-    alert(`✅ ¥${hideNumbers ? '••••' : expenseAmount.toLocaleString()} added (${isCurrentCycle ? 'This' : 'Next'} month)`);
+    alert(`✅ ¥${hideNumbers ? '••••' : expenseAmount.toLocaleString()} added!`);
   };
 
   const handlePayCard = (cardId, amount) => {
@@ -405,7 +521,7 @@ This will reverse:
     }));
     setCashAvailable(cashAvailable - amount);
     setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} paid! Cash reduced by ¥${amount.toLocaleString()}`);
+    alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} paid!`);
   };
 
   const handleSendFamilySupport = (type, amount) => {
@@ -449,7 +565,6 @@ This will reverse:
     alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} recorded!`);
   };
 
-  // Monthly Goals Handlers
   const handleAddGoal = () => {
     if (!newGoal.name || !newGoal.target) { alert('Please fill in goal name and target'); return; }
     const target = parseFloat(newGoal.target);
@@ -474,6 +589,12 @@ This will reverse:
     setCashAvailable(cashAvailable - amount);
     setSavings(savings + amount);
     alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} added to goal!`);
+  };
+
+  const handleEditGoalAmount = (goalId, field, value) => {
+    setMonthlyGoals(monthlyGoals.map(goal => 
+      goal.id === goalId ? { ...goal, [field]: value } : goal
+    ));
   };
 
   const handleReset = () => { if (confirm('⚠️ Reset ALL data?')) { localStorage.clear(); window.location.reload(); } };
@@ -504,17 +625,52 @@ This will reverse:
   
   const getCategoryIcon = (category) => ({ 'Shopping': '🛒', 'Food': '🍽️', 'Gas': '⛽', 'Transport': '🚗', 'Entertainment': '🎬', 'Health': '💊', 'Other': '📦' }[category] || '📦');
 
+  // Generate month options
+  const generateMonthOptions = () => {
+    const months = [];
+    const today = new Date();
+    for (let i = -6; i <= 6; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+      const monthStr = d.toISOString().slice(0, 7);
+      const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      months.push({ value: monthStr, label });
+    }
+    return months;
+  };
+
   return (
     <div className="App" style={{ minHeight: '100vh', background: darkMode ? '#0f172a' : '#f8fafc', padding: '24px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-      {/* Header */}
-      <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Header with Month Picker */}
+      <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '800', color: darkMode ? '#f8fafc' : '#0f172a', letterSpacing: '-0.5px' }}>💰 {appName}</h1>
           <p style={{ margin: '6px 0 0 0', fontSize: '15px', color: darkMode ? '#94a3b8' : '#64748b', fontWeight: '500' }}>Smart Financial Management</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Month Picker */}
+          <select
+            value={currentMonth}
+            onChange={(e) => handleMonthChange(e.target.value)}
+            style={{
+              padding: '12px 16px',
+              background: darkMode ? '#1e293b' : 'white',
+              border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`,
+              borderRadius: '14px',
+              color: darkMode ? '#f8fafc' : '#0f172a',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              outline: 'none'
+            }}
+          >
+            {generateMonthOptions().map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+          
           <button onClick={() => setShowCustomize(!showCustomize)} style={{ padding: '12px 16px', background: darkMode ? '#1e293b' : 'white', border: 'none', borderRadius: '14px', cursor: 'pointer', fontSize: '20px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.08)', transition: 'all 0.3s ease' }}>⚙️</button>
           <button onClick={toggleHideNumbers} style={{ padding: '12px 16px', background: hideNumbers ? '#8b5cf6' : (darkMode ? '#1e293b' : 'white'), border: 'none', borderRadius: '14px', cursor: 'pointer', fontSize: '20px', color: hideNumbers ? 'white' : (darkMode ? '#f8fafc' : '#0f172a'), boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.08)', transition: 'all 0.3s ease' }} title="Hide/Show Numbers">👁️</button>
+          <button onClick={toggleDarkMode} style={{ padding: '12px 16px', background: darkMode ? '#fbbf24' : '#1e293b', border: 'none', borderRadius: '14px', cursor: 'pointer', fontSize: '20px', color: darkMode ? '#0f172a' : 'white', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.08)', transition: 'all 0.3s ease' }}>{darkMode ? '☀️' : '🌙'}</button>
           <button onClick={() => setShowSettings(!showSettings)} style={{ padding: '12px 16px', background: darkMode ? '#1e293b' : 'white', border: 'none', borderRadius: '14px', cursor: 'pointer', fontSize: '20px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.08)', transition: 'all 0.3s ease' }}>📊</button>
         </div>
       </header>
@@ -541,9 +697,48 @@ This will reverse:
         </div>
       )}
 
-      {/* Dashboard - Enhanced Cards */}
+      {/* Warnings */}
+      {showDailyAvgWarning && (
+        <div style={{
+          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+          padding: '18px 24px',
+          borderRadius: '16px',
+          marginBottom: '24px',
+          boxShadow: '0 8px 24px rgba(239,68,68,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px'
+        }}>
+          <span style={{ fontSize: '32px' }}>⚠️</span>
+          <div>
+            <p style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: 'white' }}>Daily Spending Warning</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: 'rgba(255,255,255,0.9)' }}>Your daily average spending is more than 10% over budget!</p>
+          </div>
+        </div>
+      )}
+
+      {showCreditWarning && (
+        <div style={{
+          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+          padding: '18px 24px',
+          borderRadius: '16px',
+          marginBottom: '24px',
+          boxShadow: '0 8px 24px rgba(239,68,68,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px'
+        }}>
+          <span style={{ fontSize: '32px' }}>💳</span>
+          <div>
+            <p style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: 'white' }}>High Credit Usage</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: 'rgba(255,255,255,0.9)' }}>You're using over 80% of your available credit!</p>
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '28px' }}>
-        {/* Total Balance - Most Prominent */}
+        {/* Total Balance */}
         <div style={{ 
           background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', 
           padding: '28px 20px', 
@@ -558,7 +753,7 @@ This will reverse:
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div style={{ fontSize: '32px', marginBottom: '12px' }}>💵</div>
             <p style={{ margin: 0, fontSize: '14px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '8px' }}>TOTAL BALANCE</p>
-            <p style={{ margin: 0, fontSize: '42px', fontWeight: '800', color: 'white', letterSpacing: '-1px', textShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>{hideNumbers ? '¥••••' : `¥${cashAvailable.toLocaleString()}`}</p>
+            <EditableNumber value={cashAvailable} onChange={setCashAvailable} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="42px" />
           </div>
         </div>
 
@@ -568,24 +763,30 @@ This will reverse:
           padding: '24px 18px', 
           borderRadius: '20px', 
           textAlign: 'center',
-          boxShadow: '0 8px 24px rgba(139,92,246,0.25)'
+          boxShadow: '0 8px 24px rgba(139,92,246,0.25)',
+          position: 'relative'
         }}>
           <div style={{ fontSize: '28px', marginBottom: '10px' }}>📊</div>
-          <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#6d28d9', fontWeight: '600', marginBottom: '6px' }}>DAILY AVERAGE</p>
+          <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#6d28d9', fontWeight: '600', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            DAILY AVERAGE <Tooltip text="Average income per day this month" darkMode={darkMode} />
+          </p>
           <p style={{ margin: 0, fontSize: '26px', fontWeight: '700', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? '¥••••' : `¥${dailyAverageIncome.toLocaleString()}`}</p>
           <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.8)' : '#7c3aed', fontWeight: '500' }}>{totalDaysEarned} days earned</p>
         </div>
 
-        {/* Credit Available */}
+        {/* Remaining Credit */}
         <div style={{ 
           background: darkMode ? 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)' : 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)', 
           padding: '24px 18px', 
           borderRadius: '20px', 
           textAlign: 'center',
-          boxShadow: '0 8px 24px rgba(6,182,212,0.25)'
+          boxShadow: '0 8px 24px rgba(6,182,212,0.25)',
+          position: 'relative'
         }}>
           <div style={{ fontSize: '28px', marginBottom: '10px' }}>💳</div>
-          <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '6px' }}>CREDIT AVAILABLE</p>
+          <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            REMAINING CREDIT <Tooltip text="Total credit limit minus what you've used" darkMode={darkMode} />
+          </p>
           <p style={{ margin: 0, fontSize: '26px', fontWeight: '700', color: darkMode ? 'white' : '#164e63' }}>{hideNumbers ? '¥••••' : `¥${totalCreditAvailable.toLocaleString()}`}</p>
         </div>
 
@@ -599,7 +800,7 @@ This will reverse:
         }}>
           <div style={{ fontSize: '28px', marginBottom: '10px' }}>⚠️</div>
           <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#b91c1c', fontWeight: '600', marginBottom: '6px' }}>TOTAL DEBTS</p>
-          <p style={{ margin: 0, fontSize: '26px', fontWeight: '700', color: darkMode ? 'white' : '#7f1d1d' }}>{hideNumbers ? '¥••••' : `¥${totalDebts.toLocaleString()}`}</p>
+          <EditableNumber value={totalDebts} onChange={(v) => {}} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="26px" />
         </div>
 
         {/* Goals Progress */}
@@ -612,11 +813,16 @@ This will reverse:
         }}>
           <div style={{ fontSize: '28px', marginBottom: '10px' }}>🎯</div>
           <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#6d28d9', fontWeight: '600', marginBottom: '6px' }}>GOALS PROGRESS</p>
-          <p style={{ margin: 0, fontSize: '26px', fontWeight: '700', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? '••••' : `${Math.round((totalGoalsProgress / totalGoalsTarget) * 100) || 0}%`}</p>
+          <p style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: darkMode ? 'white' : '#5b21b6' }}>
+            {hideNumbers ? '••••' : `¥${totalGoalsProgress.toLocaleString()} / ¥${totalGoalsTarget.toLocaleString()}`}
+          </p>
+          <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: darkMode ? 'rgba(255,255,255,0.8)' : '#7c3aed', fontWeight: '600' }}>
+            {hideNumbers ? '••••' : `${Math.round((totalGoalsProgress / totalGoalsTarget) * 100) || 0}%`}
+          </p>
         </div>
       </div>
 
-      {/* 10% Auto-Savings Rule - Prominent Section */}
+      {/* 10% Auto-Savings Rule */}
       <div style={{
         background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
         padding: '28px',
@@ -644,11 +850,11 @@ This will reverse:
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>Current Savings</span>
-            <span style={{ fontSize: '20px', fontWeight: '700', color: 'white' }}>{hideNumbers ? '¥••••' : `¥${currentSavingsThisMonth.toLocaleString()}`}</span>
+            <EditableNumber value={savings} onChange={setSavings} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" />
           </div>
           <div style={{ marginTop: '16px', height: '8px', background: 'rgba(255,255,255,0.3)', borderRadius: '4px', overflow: 'hidden' }}>
             <div style={{ 
-              width: `${Math.min(100, (currentSavingsThisMonth / recommendedSavings) * 100)}%`, 
+              width: `${Math.min(100, (savings / recommendedSavings) * 100)}%`, 
               height: '100%', 
               background: 'white',
               borderRadius: '4px',
@@ -664,7 +870,7 @@ This will reverse:
           <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder="Amount (¥)" style={{ flex: 1, padding: '16px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '600' }} />
           <button onClick={handleAddIncome} style={{ padding: '16px 32px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)', transition: 'all 0.3s ease' }}>Add</button>
         </div>
-        <p style={{ fontSize: '14px', color: darkMode ? '#94a3b8' : '#64748b', marginTop: '12px', fontWeight: '500' }}>💡 {hideNumbers ? '••%' : `${investmentPercent}%`} auto-invested, {hideNumbers ? '••%' : `${goalAllocationPercent}%`} to goals</p>
+        <p style={{ fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '12px', fontWeight: '500' }}>💡 {hideNumbers ? '••%' : `${investmentPercent}%`} auto-invested, {hideNumbers ? '••%' : `${goalAllocationPercent}%`} to goals</p>
         {dailyIncomes.length > 0 && (
           <div style={{ marginTop: '20px' }}>
             <p style={{ fontSize: '15px', fontWeight: '700', marginBottom: '12px', color: darkMode ? '#f8fafc' : '#0f172a' }}>Recent:</p>
@@ -679,23 +885,7 @@ This will reverse:
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '16px' }}>{hideNumbers ? '+¥••••' : `+¥${income.amount.toLocaleString()}`}</span>
                   {index === 0 && (
-                    <button
-                      onClick={() => handleDeleteRecentIncome(income.id)}
-                      style={{
-                        padding: '8px 12px',
-                        background: '#ef4444',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        transition: 'all 0.3s ease'
-                      }}
-                      title="Delete this income entry"
-                    >
-                      🗑️
-                    </button>
+                    <button onClick={() => handleDeleteRecentIncome(income.id)} style={{ padding: '8px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', transition: 'all 0.3s ease' }}>🗑️</button>
                   )}
                 </div>
               </div>
@@ -704,7 +894,7 @@ This will reverse:
         )}
       </CollapsibleSection>
 
-      {/* Credit Cards - With Individual Smart Payment */}
+      {/* Credit Cards - ALL with Smart Payment */}
       <CollapsibleSection title="Credit cards" icon="💳" darkMode={darkMode} defaultOpen={true}>
         <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '18px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '14px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', marginTop: '20px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)', transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>➕ Add New Card</button>
         
@@ -739,7 +929,7 @@ This will reverse:
             </div>
             <input type="text" placeholder="Card Name" value={newCard.name} onChange={(e) => setNewCard({...newCard, name: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }} />
             <input type="number" placeholder="Credit Limit (¥)" value={newCard.limit} onChange={(e) => setNewCard({...newCard, limit: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }} />
-            <input type="number" placeholder="Available Amount (¥)" value={newCard.available} onChange={(e) => setNewCard({...newCard, available: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }} />
+            <input type="number" placeholder="Remaining Amount (¥)" value={newCard.available} onChange={(e) => setNewCard({...newCard, available: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }} />
             <input type="number" placeholder="Current Balance (¥)" value={newCard.balance} onChange={(e) => setNewCard({...newCard, balance: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }} />
             <select value={newCard.paymentDate} onChange={(e) => setNewCard({...newCard, paymentDate: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>
               <option value="10th">10th (Close: 25th)</option>
@@ -752,11 +942,11 @@ This will reverse:
           </div>
         )}
 
-        {/* Card List */}
+        {/* Card List - ALL with Smart Payment */}
         <div style={{ marginTop: '20px' }}>
           {creditCards.map((card) => {
             const smartPaymentAmount = Math.min(card.thisCyclePayment, cashAvailable);
-            const paymentPercentage = cashAvailable > 0 ? Math.round((smartPaymentAmount / card.thisCyclePayment) * 100) : 0;
+            const paymentPercentage = card.thisCyclePayment > 0 ? Math.round((smartPaymentAmount / card.thisCyclePayment) * 100) : 0;
             
             return (
               <div key={card.id} style={{ 
@@ -782,7 +972,7 @@ This will reverse:
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '14px', marginBottom: '14px' }}>
                   <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Limit:</span> <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>{hideNumbers ? '¥••••' : `¥${card.limit.toLocaleString()}`}</strong></div>
-                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Available:</span> <strong style={{ color: '#14b8a6', fontSize: '16px' }}>{hideNumbers ? '¥••••' : `¥${card.available.toLocaleString()}`}</strong></div>
+                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Remaining:</span> <strong style={{ color: '#14b8a6', fontSize: '16px' }}>{hideNumbers ? '¥••••' : `¥${card.available.toLocaleString()}`}</strong></div>
                   <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Balance:</span> <strong style={{ color: '#ef4444', fontSize: '18px', fontWeight: '700' }}>{hideNumbers ? '¥••••' : `¥${card.balance.toLocaleString()}`}</strong></div>
                 </div>
 
@@ -797,7 +987,7 @@ This will reverse:
                   </div>
                 </div>
 
-                {/* Smart Payment Suggestion for THIS Card */}
+                {/* Smart Payment Suggestion - FOR ALL CARDS */}
                 {card.thisCyclePayment > 0 && (
                   <div style={{ 
                     background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
@@ -865,11 +1055,11 @@ This will reverse:
         </div>
         <div style={{ marginTop: '24px', padding: '20px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '16px', boxShadow: '0 4px 12px rgba(5,150,105,0.2)' }}>
           <p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '6px' }}>Trust Fund Total</p>
-          <p style={{ margin: 0, fontSize: '32px', fontWeight: '800', color: darkMode ? 'white' : '#059669' }}>{hideNumbers ? '¥••••' : `¥${trustFund.toLocaleString()}`}</p>
+          <EditableNumber value={trustFund} onChange={setTrustFund} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="32px" />
         </div>
         <div style={{ marginTop: '18px', padding: '18px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '16px' }}>
           <p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '6px' }}>SPUS Shares</p>
-          <p style={{ margin: 0, fontSize: '26px', fontWeight: '700', color: darkMode ? 'white' : '#0e7490' }}>{hideNumbers ? '•••• shares' : `${spusShares} shares`}</p>
+          <EditableNumber value={spusShares} onChange={setSpusShares} prefix="" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="26px" />
         </div>
         <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
           <input type="number" placeholder="Amount to invest" id="invest-amount" style={{ flex: 1, padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
@@ -905,8 +1095,13 @@ This will reverse:
       <CollapsibleSection title="Health funds" icon="🏥" darkMode={darkMode}>
         <div style={{ marginTop: '20px', padding: '20px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '16px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.06)' }}>
           <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>💇 Hair Transplant Plan</p>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '14px', marginBottom: '12px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Saved:</span><strong style={{ color: '#14b8a6', fontSize: '18px' }}>{hideNumbers ? '¥••••' : `¥${healthFunds.hairTransplant.current.toLocaleString()}`} / {hideNumbers ? '¥••••' : `¥${healthFunds.hairTransplant.goal.toLocaleString()}`}</strong></div>
-          <div style={{ width: '100%', height: '10px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '6px', marginTop: '12px', overflow: 'hidden' }}><div style={{ width: `${(healthFunds.hairTransplant.current / healthFunds.hairTransplant.goal) * 100}%`, height: '100%', background: '#14b8a6', borderRadius: '6px', transition: 'width 0.5s ease' }}></div></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '14px', marginBottom: '12px' }}>
+            <span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Saved:</span>
+            <strong style={{ color: '#14b8a6', fontSize: '18px' }}>{hideNumbers ? '¥••••' : `¥${healthFunds.hairTransplant.current.toLocaleString()}`} / {hideNumbers ? '¥••••' : `¥${healthFunds.hairTransplant.goal.toLocaleString()}`}</strong>
+          </div>
+          <div style={{ width: '100%', height: '10px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '6px', marginTop: '12px', overflow: 'hidden' }}>
+            <div style={{ width: `${(healthFunds.hairTransplant.current / healthFunds.hairTransplant.goal) * 100}%`, height: '100%', background: '#14b8a6', borderRadius: '6px', transition: 'width 0.5s ease' }}></div>
+          </div>
           <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
             <input type="number" placeholder="Amount" id="health-amount" style={{ flex: 1, padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
             <button onClick={() => handleAddHealthFund(parseFloat(document.getElementById('health-amount').value))} style={{ padding: '14px 32px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>Add</button>
@@ -925,10 +1120,12 @@ This will reverse:
             </div>
           ))}
         </div>
-        <div style={{ marginTop: '18px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.06)' }}><p style={{ margin: 0, fontSize: '15px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month Total: <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '18px' }}>{hideNumbers ? '¥••••' : `¥${(homeExpenses.food + homeExpenses.gas + homeExpenses.electricity).toLocaleString()}`}</strong></p></div>
+        <div style={{ marginTop: '18px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.06)' }}>
+          <p style={{ margin: 0, fontSize: '15px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month Total: <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '18px' }}>{hideNumbers ? '¥••••' : `¥${(homeExpenses.food + homeExpenses.gas + homeExpenses.electricity).toLocaleString()}`}</strong></p>
+        </div>
       </CollapsibleSection>
 
-      {/* Car Expenses (Capped at ¥2000) */}
+      {/* Car Expenses */}
       <CollapsibleSection title="Car expenses" icon="🚗" darkMode={darkMode}>
         <div style={{ marginTop: '20px' }}>
           <div style={{ padding: '18px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '14px', marginBottom: '18px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.06)' }}>
@@ -951,20 +1148,33 @@ This will reverse:
             </div>
           ))}
         </div>
-        <div style={{ marginTop: '18px', padding: '18px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '14px' }}><p style={{ margin: 0, fontSize: '15px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total This Month: <strong style={{ fontSize: '20px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? '¥••••' : `¥${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
+        <div style={{ marginTop: '18px', padding: '18px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '14px' }}>
+          <p style={{ margin: 0, fontSize: '15px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total This Month: <strong style={{ fontSize: '20px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? '¥••••' : `¥${pensionsInsurance.total.toLocaleString()}`}</strong></p>
+        </div>
       </CollapsibleSection>
 
       {/* Monthly Summary */}
       <CollapsibleSection title="Monthly summary" icon="📈" darkMode={darkMode} defaultOpen={true}>
         <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
-          <div style={{ padding: '18px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '14px', textAlign: 'center', boxShadow: '0 4px 12px rgba(5,150,105,0.2)' }}><p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '6px' }}>M Income</p><p style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: darkMode ? 'white' : '#059669' }}>{hideNumbers ? '¥••••' : `¥${monthlyIncome.toLocaleString()}`}</p></div>
-          <div style={{ padding: '18px', background: darkMode ? '#dc2626' : '#fee2e2', borderRadius: '14px', textAlign: 'center', boxShadow: '0 4px 12px rgba(220,38,38,0.2)' }}><p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#b91c1c', fontWeight: '600', marginBottom: '6px' }}>M Expenses</p><p style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: darkMode ? 'white' : '#b91c1c' }}>{hideNumbers ? '¥••••' : `¥${monthlyExpenses.toLocaleString()}`}</p></div>
-          <div style={{ padding: '18px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '14px', textAlign: 'center', boxShadow: '0 4px 12px rgba(8,145,178,0.2)' }}><p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '6px' }}>M Savings</p><p style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: darkMode ? 'white' : '#0e7490' }}>{hideNumbers ? '¥••••' : `¥${savings.toLocaleString()}`}</p></div>
+          <div style={{ padding: '18px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '14px', textAlign: 'center', boxShadow: '0 4px 12px rgba(5,150,105,0.2)' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '6px' }}>M Income</p>
+            <EditableNumber value={monthlyIncome} onChange={setMonthlyIncome} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
+          </div>
+          <div style={{ padding: '18px', background: darkMode ? '#dc2626' : '#fee2e2', borderRadius: '14px', textAlign: 'center', boxShadow: '0 4px 12px rgba(220,38,38,0.2)' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#b91c1c', fontWeight: '600', marginBottom: '6px' }}>M Expenses</p>
+            <EditableNumber value={monthlyExpenses} onChange={setMonthlyExpenses} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
+          </div>
+          <div style={{ padding: '18px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '14px', textAlign: 'center', boxShadow: '0 4px 12px rgba(8,145,178,0.2)' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '6px' }}>M Savings</p>
+            <EditableNumber value={savings} onChange={setSavings} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
+          </div>
         </div>
       </CollapsibleSection>
 
       {/* Footer */}
-      <footer style={{ textAlign: 'center', padding: '24px', color: darkMode ? '#64748b' : '#94a3b8', fontSize: '14px', marginTop: '32px', borderTop: `2px solid ${darkMode ? '#1e293b' : '#e2e8f0'}` }}><p style={{ margin: 0, fontWeight: '500' }}>© 2026 {appName} • Smart Financial Management</p></footer>
+      <footer style={{ textAlign: 'center', padding: '24px', color: darkMode ? '#64748b' : '#94a3b8', fontSize: '14px', marginTop: '32px', borderTop: `2px solid ${darkMode ? '#1e293b' : '#e2e8f0'}` }}>
+        <p style={{ margin: 0, fontWeight: '500' }}>© 2026 {appName} • Smart Financial Management</p>
+      </footer>
     </div>
   );
 }
