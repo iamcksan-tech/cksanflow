@@ -8,32 +8,34 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
   return (
     <div style={{
       background: darkMode ? '#1f2937' : 'white',
-      borderRadius: '16px',
-      marginBottom: '12px',
+      borderRadius: '20px',
+      marginBottom: '20px',
       overflow: 'hidden',
-      boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.08)'
+      boxShadow: darkMode ? '0 10px 40px rgba(0,0,0,0.4)' : '0 10px 40px rgba(0,0,0,0.08)',
+      border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`
     }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
           width: '100%',
-          padding: '18px 20px',
+          padding: '22px 24px',
           background: 'transparent',
           border: 'none',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           cursor: 'pointer',
-          color: darkMode ? '#f3f4f6' : '#1f2937'
+          color: darkMode ? '#f3f4f6' : '#1f2937',
+          transition: 'all 0.3s ease'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '22px' }}>{icon}</span>
-          <span style={{ fontSize: '17px', fontWeight: '500' }}>{title}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <span style={{ fontSize: '26px' }}>{icon}</span>
+          <span style={{ fontSize: '18px', fontWeight: '600' }}>{title}</span>
         </div>
-        <span style={{ fontSize: '20px', color: '#14b8a6' }}>{isOpen ? '−' : '+'}</span>
+        <span style={{ fontSize: '24px', color: '#14b8a6', fontWeight: '300' }}>{isOpen ? '−' : '+'}</span>
       </button>
-      {isOpen && <div style={{ padding: '0 20px 20px 20px', borderTop: `1px solid ${darkMode ? '#374151' : '#f3f4f6'}` }}>{children}</div>}
+      {isOpen && <div style={{ padding: '0 24px 24px 24px', borderTop: `1px solid ${darkMode ? '#374151' : '#f3f4f6'}` }}>{children}</div>}
     </div>
   );
 }
@@ -42,23 +44,88 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
 function ProgressChart({ current, goal, label, color = '#14b8a6', darkMode, hideNumbers }) {
   const percentage = Math.min(100, Math.round((current / goal) * 100));
   return (
-    <div style={{ marginTop: '10px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '13px' }}>
-        <span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>{label}</span>
-        <span style={{ fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>{hideNumbers ? '••••' : `${percentage}%`}</span>
+    <div style={{ marginTop: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px' }}>
+        <span style={{ color: darkMode ? '#9ca3af' : '#6b7280', fontWeight: '500' }}>{label}</span>
+        <span style={{ fontWeight: '700', color: darkMode ? '#f3f4f6' : '#1f2937' }}>{hideNumbers ? '••••' : `${percentage}%`}</span>
       </div>
-      <div style={{ width: '100%', height: '12px', background: darkMode ? '#374151' : '#e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
+      <div style={{ width: '100%', height: '14px', background: darkMode ? '#374151' : '#e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
         <div style={{
           width: `${percentage}%`,
           height: '100%',
-          background: `linear-gradient(90deg, ${color} 0%, ${color}cc 100%)`,
-          borderRadius: '6px',
-          transition: 'width 0.3s ease'
+          background: `linear-gradient(90deg, ${color} 0%, ${color}dd 100%)`,
+          borderRadius: '8px',
+          transition: 'width 0.5s ease',
+          boxShadow: `0 0 10px ${color}55`
         }}></div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px', fontSize: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '13px' }}>
         <span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>{hideNumbers ? '¥••••' : `¥${current?.toLocaleString()}`}</span>
         <span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>{hideNumbers ? 'Goal: ¥••••' : `Goal: ¥${goal?.toLocaleString()}`}</span>
+      </div>
+    </div>
+  );
+}
+
+// Pie Chart Component for Spending
+function SpendingPieChart({ data, darkMode, hideNumbers }) {
+  const total = Object.values(data).reduce((sum, val) => sum + val, 0);
+  const colors = {
+    'Shopping': '#8b5cf6',
+    'Food': '#f59e0b',
+    'Gas': '#ef4444',
+    'Transport': '#14b8a6',
+    'Entertainment': '#ec4899',
+    'Health': '#06b6d4',
+    'Other': '#6b7280'
+  };
+
+  let currentAngle = 0;
+  const segments = Object.entries(data).filter(([_, val]) => val > 0).map(([category, amount]) => {
+    const percentage = (amount / total) * 100;
+    const angle = (percentage / 100) * 360;
+    const startAngle = currentAngle;
+    currentAngle += angle;
+    return { category, amount, percentage, color: colors[category] || '#6b7280', startAngle, angle };
+  });
+
+  return (
+    <div style={{ marginTop: '20px', padding: '20px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '16px' }}>
+      <h4 style={{ margin: '0 0 20px 0', color: darkMode ? '#f3f4f6' : '#1f2937', fontSize: '16px', fontWeight: '600' }}>📊 Spending by Category</h4>
+      
+      {/* Pie Chart */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+        <svg width="200" height="200" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+          {segments.map((segment, index) => {
+            const x1 = 50 + 40 * Math.cos((segment.startAngle * Math.PI) / 180);
+            const y1 = 50 + 40 * Math.sin((segment.startAngle * Math.PI) / 180);
+            const x2 = 50 + 40 * Math.cos(((segment.startAngle + segment.angle) * Math.PI) / 180);
+            const y2 = 50 + 40 * Math.sin(((segment.startAngle + segment.angle) * Math.PI) / 180);
+            const largeArc = segment.angle > 180 ? 1 : 0;
+            
+            return (
+              <path
+                key={index}
+                d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                fill={segment.color}
+                stroke={darkMode ? '#1f2937' : 'white'}
+                strokeWidth="2"
+              />
+            );
+          })}
+          <circle cx="50" cy="50" r="25" fill={darkMode ? '#1f2937' : 'white'} />
+        </svg>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+        {segments.map((segment, index) => (
+          <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+            <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: segment.color }}></div>
+            <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937', flex: 1 }}>{segment.category}</span>
+            <span style={{ fontWeight: '600', color: darkMode ? '#9ca3af' : '#6b7280' }}>{hideNumbers ? '¥••••' : `¥${segment.amount.toLocaleString()}`}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -138,13 +205,29 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [appName, setAppName] = useState(() => loadData('appName', 'CkSanFlow'));
-  const [showSmartPay, setShowSmartPay] = useState(false);
 
   // CALCULATIONS
   const totalDebts = creditCards.reduce((sum, card) => sum + card.balance, 0);
   const totalCreditAvailable = creditCards.reduce((sum, card) => sum + card.available, 0);
   const totalGoalsProgress = monthlyGoals.reduce((sum, goal) => sum + goal.current, 0);
   const totalGoalsTarget = monthlyGoals.reduce((sum, goal) => sum + goal.target, 0);
+  
+  // Daily Income Calculations
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const thisMonthIncomes = dailyIncomes.filter(inc => inc.date.startsWith(currentMonth));
+  const totalDaysEarned = thisMonthIncomes.length;
+  const totalIncomeThisMonth = thisMonthIncomes.reduce((sum, inc) => sum + inc.amount, 0);
+  const dailyAverageIncome = totalDaysEarned > 0 ? Math.round(totalIncomeThisMonth / totalDaysEarned) : 0;
+  
+  // 10% Savings Rule
+  const recommendedSavings = Math.round(monthlyIncome * 0.10);
+  const currentSavingsThisMonth = savings; // Could track monthly savings separately
+  
+  // Spending by Category (from card expenses)
+  const spendingByCategory = {};
+  cardExpenses.forEach(expense => {
+    spendingByCategory[expense.category] = (spendingByCategory[expense.category] || 0) + expense.amount;
+  });
 
   // Helper: Calculate closing date from payment date
   const calculateClosingDate = (paymentDate) => {
@@ -152,26 +235,6 @@ function App() {
     let closing = date - 15;
     if (closing <= 0) closing += 30;
     return closing.toString() + 'th';
-  };
-
-  // Helper: Calculate smart payment suggestion
-  const calculateSmartPayment = () => {
-    if (cashAvailable === 0) return [];
-    const sortedCards = [...creditCards].filter(card => card.thisCyclePayment > 0).sort((a, b) => a.balance - b.balance);
-    const payments = [];
-    let remainingCash = cashAvailable;
-    const totalPaymentsNeeded = sortedCards.reduce((sum, card) => sum + card.thisCyclePayment, 0);
-    const paymentPercentage = Math.min(100, (cashAvailable / totalPaymentsNeeded) * 100);
-    
-    sortedCards.forEach(card => {
-      const suggestedPayment = Math.round(card.thisCyclePayment * (paymentPercentage / 100));
-      const actualPayment = Math.min(suggestedPayment, remainingCash);
-      if (actualPayment > 0) {
-        payments.push({ cardId: card.id, cardName: card.name, suggestedAmount: actualPayment, originalAmount: card.thisCyclePayment, percentage: Math.round((actualPayment / card.thisCyclePayment) * 100) });
-        remainingCash -= actualPayment;
-      }
-    });
-    return payments;
   };
 
   // Save data
@@ -237,7 +300,7 @@ function App() {
     alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} added!`);
   };
 
-  // NEW: Delete Recent Income
+  // Delete Recent Income
   const handleDeleteRecentIncome = (incomeId) => {
     const incomeToDelete = dailyIncomes.find(inc => inc.id === incomeId);
     if (!incomeToDelete) return;
@@ -257,13 +320,11 @@ This will reverse:
     const investAmount = Math.round(incomeToDelete.amount * (investmentPercent / 100));
     const goalAmount = Math.round(incomeToDelete.amount * (goalAllocationPercent / 100));
     
-    // Reverse the effects
     setCashAvailable(cashAvailable - incomeToDelete.amount);
     setMonthlyIncome(monthlyIncome - incomeToDelete.amount);
     setTrustFund(trustFund - investAmount);
     setSavings(savings - investAmount);
     
-    // Reverse goal contributions
     const incompleteGoalsAtTime = monthlyGoals.filter(g => g.current < g.target);
     if (incompleteGoalsAtTime.length > 0) {
       const perGoal = Math.round(goalAmount / incompleteGoalsAtTime.length);
@@ -274,9 +335,7 @@ This will reverse:
       ));
     }
     
-    // Remove from list
     setDailyIncomes(dailyIncomes.filter(inc => inc.id !== incomeId));
-    
     alert(`🗑️ Income entry deleted!`);
   };
 
@@ -346,16 +405,7 @@ This will reverse:
     }));
     setCashAvailable(cashAvailable - amount);
     setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} paid!`);
-  };
-
-  const handleSmartPayAll = () => {
-    const payments = calculateSmartPayment();
-    if (payments.length === 0) { alert('❌ No payments to make or insufficient cash!'); return; }
-    let totalToPay = payments.reduce((sum, p) => sum + p.suggestedAmount, 0);
-    if (totalToPay > cashAvailable) { alert('❌ Insufficient cash for all payments!'); return; }
-    payments.forEach(payment => handlePayCard(payment.cardId, payment.suggestedAmount));
-    alert(`✅ Smart payment complete! ¥${hideNumbers ? '••••' : totalToPay.toLocaleString()} paid`);
+    alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} paid! Cash reduced by ¥${amount.toLocaleString()}`);
   };
 
   const handleSendFamilySupport = (type, amount) => {
@@ -454,100 +504,193 @@ This will reverse:
   
   const getCategoryIcon = (category) => ({ 'Shopping': '🛒', 'Food': '🍽️', 'Gas': '⛽', 'Transport': '🚗', 'Entertainment': '🎬', 'Health': '💊', 'Other': '📦' }[category] || '📦');
 
-  const smartPayments = calculateSmartPayment();
-
   return (
-    <div className="App" style={{ minHeight: '100vh', background: darkMode ? '#111827' : '#f2f4f8', padding: '20px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+    <div className="App" style={{ minHeight: '100vh', background: darkMode ? '#0f172a' : '#f8fafc', padding: '24px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       {/* Header */}
-      <header style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '700', color: darkMode ? '#f3f4f6' : '#1f2937' }}>💰 {appName}</h1>
-          <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: darkMode ? '#9ca3af' : '#6b7280' }}>Smart Financial Management</p>
+          <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '800', color: darkMode ? '#f8fafc' : '#0f172a', letterSpacing: '-0.5px' }}>💰 {appName}</h1>
+          <p style={{ margin: '6px 0 0 0', fontSize: '15px', color: darkMode ? '#94a3b8' : '#64748b', fontWeight: '500' }}>Smart Financial Management</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => setShowCustomize(!showCustomize)} style={{ padding: '10px 15px', background: darkMode ? '#374151' : 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '18px' }}>⚙️</button>
-          <button onClick={toggleHideNumbers} style={{ padding: '10px 15px', background: hideNumbers ? '#8b5cf6' : (darkMode ? '#374151' : 'white'), border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '18px', color: hideNumbers ? 'white' : (darkMode ? '#f3f4f6' : '#1f2937') }} title="Hide/Show Numbers">👁️</button>
-          <button onClick={() => setShowSettings(!showSettings)} style={{ padding: '10px 15px', background: darkMode ? '#374151' : 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '18px' }}>📊</button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={() => setShowCustomize(!showCustomize)} style={{ padding: '12px 16px', background: darkMode ? '#1e293b' : 'white', border: 'none', borderRadius: '14px', cursor: 'pointer', fontSize: '20px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.08)', transition: 'all 0.3s ease' }}>⚙️</button>
+          <button onClick={toggleHideNumbers} style={{ padding: '12px 16px', background: hideNumbers ? '#8b5cf6' : (darkMode ? '#1e293b' : 'white'), border: 'none', borderRadius: '14px', cursor: 'pointer', fontSize: '20px', color: hideNumbers ? 'white' : (darkMode ? '#f8fafc' : '#0f172a'), boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.08)', transition: 'all 0.3s ease' }} title="Hide/Show Numbers">👁️</button>
+          <button onClick={() => setShowSettings(!showSettings)} style={{ padding: '12px 16px', background: darkMode ? '#1e293b' : 'white', border: 'none', borderRadius: '14px', cursor: 'pointer', fontSize: '20px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.08)', transition: 'all 0.3s ease' }}>📊</button>
         </div>
       </header>
 
       {/* Customize Panel */}
       {showCustomize && (
-        <div style={{ background: darkMode ? '#1f2937' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px' }}>
-          <h3 style={{ margin: '0 0 15px 0', color: darkMode ? '#f3f4f6' : '#1f2937' }}>Customize App</h3>
-          <input type="text" value={appName} onChange={(e) => setAppName(e.target.value)} placeholder="App Name" style={{ width: '100%', padding: '12px', marginBottom: '10px', borderRadius: '10px', border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`, background: darkMode ? '#374151' : '#f9fafb', color: darkMode ? '#f3f4f6' : '#1f2937', fontSize: '16px' }} />
-          <button onClick={() => setShowCustomize(false)} style={{ width: '100%', padding: '12px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '16px' }}>✅ Save</button>
+        <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '20px', marginBottom: '24px', boxShadow: darkMode ? '0 10px 40px rgba(0,0,0,0.4)' : '0 10px 40px rgba(0,0,0,0.08)' }}>
+          <h3 style={{ margin: '0 0 20px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '18px', fontWeight: '700' }}>Customize App</h3>
+          <input type="text" value={appName} onChange={(e) => setAppName(e.target.value)} placeholder="App Name" style={{ width: '100%', padding: '14px', marginBottom: '16px', borderRadius: '12px', border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', boxSizing: 'border-box' }} />
+          <button onClick={() => setShowCustomize(false)} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>✅ Save</button>
         </div>
       )}
 
       {/* Settings Panel */}
       {showSettings && (
-        <div style={{ background: darkMode ? '#1f2937' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px' }}>
-          <h3 style={{ margin: '0 0 15px 0', color: darkMode ? '#f3f4f6' : '#1f2937' }}>Settings</h3>
-          <div style={{ display: 'grid', gap: '10px' }}>
-            <button onClick={toggleDarkMode} style={{ padding: '14px', background: darkMode ? '#fbbf24' : '#1f2937', color: darkMode ? '#1f2937' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '16px' }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</button>
-            <button onClick={toggleHideNumbers} style={{ padding: '14px', background: hideNumbers ? '#8b5cf6' : '#1f2937', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '16px' }}>{hideNumbers ? '👁️ Show Numbers' : '🙈 Hide Numbers'}</button>
-            <button onClick={handleExport} style={{ padding: '14px', background: '#667eea', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '16px' }}>📦 Export Backup</button>
-            <button onClick={handleReset} style={{ padding: '14px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '16px' }}>🗑️ Reset All Data</button>
+        <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '24px', borderRadius: '20px', marginBottom: '24px', boxShadow: darkMode ? '0 10px 40px rgba(0,0,0,0.4)' : '0 10px 40px rgba(0,0,0,0.08)' }}>
+          <h3 style={{ margin: '0 0 20px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '18px', fontWeight: '700' }}>Settings</h3>
+          <div style={{ display: 'grid', gap: '12px' }}>
+            <button onClick={toggleDarkMode} style={{ padding: '16px', background: darkMode ? '#fbbf24' : '#0f172a', color: darkMode ? '#0f172a' : 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', transition: 'all 0.3s ease' }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</button>
+            <button onClick={toggleHideNumbers} style={{ padding: '16px', background: hideNumbers ? '#8b5cf6' : '#0f172a', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', transition: 'all 0.3s ease' }}>{hideNumbers ? '👁️ Show Numbers' : '🙈 Hide Numbers'}</button>
+            <button onClick={handleExport} style={{ padding: '16px', background: '#667eea', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', boxShadow: '0 4px 12px rgba(102,126,234,0.3)', transition: 'all 0.3s ease' }}>📦 Export Backup</button>
+            <button onClick={handleReset} style={{ padding: '16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', boxShadow: '0 4px 12px rgba(239,68,68,0.3)', transition: 'all 0.3s ease' }}>🗑️ Reset All Data</button>
           </div>
         </div>
       )}
 
-      {/* Dashboard - 4 Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #ccfbf1 0%, #f0fdfa 100%)', padding: '20px 15px', borderRadius: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '24px', marginBottom: '8px' }}>💵</div>
-          <p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#0d9488', fontWeight: '500' }}>Cash Available</p>
-          <p style={{ margin: '5px 0 0 0', fontSize: '22px', fontWeight: '700', color: darkMode ? '#fff' : '#115e59' }}>{hideNumbers ? '¥••••' : `¥${cashAvailable.toLocaleString()}`}</p>
+      {/* Dashboard - Enhanced Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '28px' }}>
+        {/* Total Balance - Most Prominent */}
+        <div style={{ 
+          background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', 
+          padding: '28px 20px', 
+          borderRadius: '24px', 
+          textAlign: 'center',
+          boxShadow: '0 12px 40px rgba(16,185,129,0.3)',
+          gridColumn: 'span 2',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(255,255,255,0.1)', pointerEvents: 'none' }}></div>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}>💵</div>
+            <p style={{ margin: 0, fontSize: '14px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '8px' }}>TOTAL BALANCE</p>
+            <p style={{ margin: 0, fontSize: '42px', fontWeight: '800', color: 'white', letterSpacing: '-1px', textShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>{hideNumbers ? '¥••••' : `¥${cashAvailable.toLocaleString()}`}</p>
+          </div>
         </div>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)' : 'linear-gradient(135deg, #cffafe 0%, #ecfeff 100%)', padding: '20px 15px', borderRadius: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '24px', marginBottom: '8px' }}>💳</div>
-          <p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#0e7490', fontWeight: '500' }}>Credit Available</p>
-          <p style={{ margin: '5px 0 0 0', fontSize: '22px', fontWeight: '700', color: darkMode ? '#fff' : '#164e63' }}>{hideNumbers ? '¥••••' : `¥${totalCreditAvailable.toLocaleString()}`}</p>
+
+        {/* Daily Average Income */}
+        <div style={{ 
+          background: darkMode ? 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)' : 'linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%)', 
+          padding: '24px 18px', 
+          borderRadius: '20px', 
+          textAlign: 'center',
+          boxShadow: '0 8px 24px rgba(139,92,246,0.25)'
+        }}>
+          <div style={{ fontSize: '28px', marginBottom: '10px' }}>📊</div>
+          <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#6d28d9', fontWeight: '600', marginBottom: '6px' }}>DAILY AVERAGE</p>
+          <p style={{ margin: 0, fontSize: '26px', fontWeight: '700', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? '¥••••' : `¥${dailyAverageIncome.toLocaleString()}`}</p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.8)' : '#7c3aed', fontWeight: '500' }}>{totalDaysEarned} days earned</p>
         </div>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' : 'linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%)', padding: '20px 15px', borderRadius: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '24px', marginBottom: '8px' }}>⚠️</div>
-          <p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#b91c1c', fontWeight: '500' }}>Total Debts</p>
-          <p style={{ margin: '5px 0 0 0', fontSize: '22px', fontWeight: '700', color: darkMode ? '#fff' : '#7f1d1d' }}>{hideNumbers ? '¥••••' : `¥${totalDebts.toLocaleString()}`}</p>
+
+        {/* Credit Available */}
+        <div style={{ 
+          background: darkMode ? 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)' : 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)', 
+          padding: '24px 18px', 
+          borderRadius: '20px', 
+          textAlign: 'center',
+          boxShadow: '0 8px 24px rgba(6,182,212,0.25)'
+        }}>
+          <div style={{ fontSize: '28px', marginBottom: '10px' }}>💳</div>
+          <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '6px' }}>CREDIT AVAILABLE</p>
+          <p style={{ margin: 0, fontSize: '26px', fontWeight: '700', color: darkMode ? 'white' : '#164e63' }}>{hideNumbers ? '¥••••' : `¥${totalCreditAvailable.toLocaleString()}`}</p>
         </div>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)' : 'linear-gradient(135deg, #ddd6fe 0%, #f3e8ff 100%)', padding: '20px 15px', borderRadius: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '24px', marginBottom: '8px' }}>🎯</div>
-          <p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#6d28d9', fontWeight: '500' }}>Goals Progress</p>
-          <p style={{ margin: '5px 0 0 0', fontSize: '22px', fontWeight: '700', color: darkMode ? '#fff' : '#5b21b6' }}>{hideNumbers ? '••••' : `${Math.round((totalGoalsProgress / totalGoalsTarget) * 100) || 0}%`}</p>
+
+        {/* Total Debts */}
+        <div style={{ 
+          background: darkMode ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' : 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)', 
+          padding: '24px 18px', 
+          borderRadius: '20px', 
+          textAlign: 'center',
+          boxShadow: '0 8px 24px rgba(239,68,68,0.25)'
+        }}>
+          <div style={{ fontSize: '28px', marginBottom: '10px' }}>⚠️</div>
+          <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#b91c1c', fontWeight: '600', marginBottom: '6px' }}>TOTAL DEBTS</p>
+          <p style={{ margin: 0, fontSize: '26px', fontWeight: '700', color: darkMode ? 'white' : '#7f1d1d' }}>{hideNumbers ? '¥••••' : `¥${totalDebts.toLocaleString()}`}</p>
+        </div>
+
+        {/* Goals Progress */}
+        <div style={{ 
+          background: darkMode ? 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)' : 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', 
+          padding: '24px 18px', 
+          borderRadius: '20px', 
+          textAlign: 'center',
+          boxShadow: '0 8px 24px rgba(139,92,246,0.25)'
+        }}>
+          <div style={{ fontSize: '28px', marginBottom: '10px' }}>🎯</div>
+          <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#6d28d9', fontWeight: '600', marginBottom: '6px' }}>GOALS PROGRESS</p>
+          <p style={{ margin: 0, fontSize: '26px', fontWeight: '700', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? '••••' : `${Math.round((totalGoalsProgress / totalGoalsTarget) * 100) || 0}%`}</p>
+        </div>
+      </div>
+
+      {/* 10% Auto-Savings Rule - Prominent Section */}
+      <div style={{
+        background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
+        padding: '28px',
+        borderRadius: '20px',
+        marginBottom: '28px',
+        boxShadow: '0 12px 40px rgba(16,185,129,0.3)',
+        border: `3px solid ${darkMode ? '#064e3b' : '#059669'}`
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ fontSize: '36px' }}>💰</div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: 'white' }}>10% Auto-Savings Rule</h3>
+            <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: 'rgba(255,255,255,0.9)' }}>You should save this month</p>
+          </div>
+        </div>
+        <div style={{ 
+          background: 'rgba(255,255,255,0.2)', 
+          padding: '20px', 
+          borderRadius: '16px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>Recommended Savings (10% of income)</span>
+            <span style={{ fontSize: '28px', fontWeight: '800', color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>{hideNumbers ? '¥••••' : `¥${recommendedSavings.toLocaleString()}`}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>Current Savings</span>
+            <span style={{ fontSize: '20px', fontWeight: '700', color: 'white' }}>{hideNumbers ? '¥••••' : `¥${currentSavingsThisMonth.toLocaleString()}`}</span>
+          </div>
+          <div style={{ marginTop: '16px', height: '8px', background: 'rgba(255,255,255,0.3)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ 
+              width: `${Math.min(100, (currentSavingsThisMonth / recommendedSavings) * 100)}%`, 
+              height: '100%', 
+              background: 'white',
+              borderRadius: '4px',
+              transition: 'width 0.5s ease'
+            }}></div>
+          </div>
         </div>
       </div>
 
       {/* Daily Income */}
       <CollapsibleSection title="Daily income" icon="📊" darkMode={darkMode} defaultOpen={true}>
-        <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-          <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder="Amount (¥)" style={inputStyle(darkMode)} />
-          <button onClick={handleAddIncome} style={{ padding: '14px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '16px' }}>Add</button>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+          <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder="Amount (¥)" style={{ flex: 1, padding: '16px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '600' }} />
+          <button onClick={handleAddIncome} style={{ padding: '16px 32px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)', transition: 'all 0.3s ease' }}>Add</button>
         </div>
-        <p style={{ fontSize: '13px', color: darkMode ? '#9ca3af' : '#6b7280', marginTop: '10px' }}>💡 {hideNumbers ? '••%' : `${investmentPercent}%`} auto-invested, {hideNumbers ? '••%' : `${goalAllocationPercent}%`} to goals</p>
+        <p style={{ fontSize: '14px', color: darkMode ? '#94a3b8' : '#64748b', marginTop: '12px', fontWeight: '500' }}>💡 {hideNumbers ? '••%' : `${investmentPercent}%`} auto-invested, {hideNumbers ? '••%' : `${goalAllocationPercent}%`} to goals</p>
         {dailyIncomes.length > 0 && (
-          <div style={{ marginTop: '15px' }}>
-            <p style={{ fontSize: '14px', fontWeight: '600', marginBottom: '10px', color: darkMode ? '#f3f4f6' : '#1f2937' }}>Recent:</p>
+          <div style={{ marginTop: '20px' }}>
+            <p style={{ fontSize: '15px', fontWeight: '700', marginBottom: '12px', color: darkMode ? '#f8fafc' : '#0f172a' }}>Recent:</p>
             {dailyIncomes.slice(0, 5).map((income, index) => (
-              <div key={income.id} style={{ padding: '10px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '8px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div key={income.id} style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div>
-                    <span style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>{income.date}</span>
-                    {index === 0 && <span style={{ marginLeft: '8px', fontSize: '11px', background: '#f59e0b', color: 'white', padding: '2px 6px', borderRadius: '4px' }}>LATEST</span>}
+                    <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{income.date}</span>
+                    {index === 0 && <span style={{ marginLeft: '10px', fontSize: '11px', background: '#f59e0b', color: 'white', padding: '3px 8px', borderRadius: '6px', fontWeight: '700' }}>LATEST</span>}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ color: '#14b8a6', fontWeight: '600' }}>{hideNumbers ? '+¥••••' : `+¥${income.amount.toLocaleString()}`}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '16px' }}>{hideNumbers ? '+¥••••' : `+¥${income.amount.toLocaleString()}`}</span>
                   {index === 0 && (
                     <button
                       onClick={() => handleDeleteRecentIncome(income.id)}
                       style={{
-                        padding: '6px 10px',
+                        padding: '8px 12px',
                         background: '#ef4444',
                         color: 'white',
                         border: 'none',
-                        borderRadius: '6px',
+                        borderRadius: '8px',
                         cursor: 'pointer',
-                        fontSize: '14px'
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        transition: 'all 0.3s ease'
                       }}
                       title="Delete this income entry"
                     >
@@ -561,113 +704,20 @@ This will reverse:
         )}
       </CollapsibleSection>
 
-      {/* Smart Payment Suggestion */}
-      {smartPayments.length > 0 && (
-        <CollapsibleSection title="💡 Smart Payment Suggestion" icon="🎯" darkMode={darkMode} defaultOpen={false}>
-          <div style={{ marginTop: '15px' }}>
-            <p style={{ fontSize: '14px', color: darkMode ? '#9ca3af' : '#6b7280', marginBottom: '15px' }}>Based on your cash ({hideNumbers ? '¥••••' : `¥${cashAvailable.toLocaleString()}`}), here's the optimal payment plan:</p>
-            {smartPayments.map((payment, index) => (
-              <div key={index} style={{ padding: '12px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '8px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <p style={{ margin: 0, fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>{payment.cardName}</p>
-                  <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#9ca3af' : '#6b7280' }}>Pay {hideNumbers ? '••%' : `${payment.percentage}%`} ({hideNumbers ? '¥••••' : `¥${payment.suggestedAmount.toLocaleString()}`} of {hideNumbers ? '¥••••' : `¥${payment.originalAmount.toLocaleString()}`})</p>
-                </div>
-                <button onClick={() => handlePayCard(payment.cardId, payment.suggestedAmount)} style={{ padding: '8px 16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>Pay</button>
-              </div>
-            ))}
-            <button onClick={handleSmartPayAll} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', marginTop: '10px' }}>💰 Pay All Smartly ({hideNumbers ? '¥••••' : `¥${smartPayments.reduce((sum, p) => sum + p.suggestedAmount, 0).toLocaleString()}`})</button>
-          </div>
-        </CollapsibleSection>
-      )}
-
-      {/* Monthly Goals */}
-      <CollapsibleSection title="🎯 Monthly Goals" icon="🎯" darkMode={darkMode} defaultOpen={true}>
-        <div style={{ marginTop: '15px' }}>
-          <label style={{ fontSize: '14px', color: darkMode ? '#9ca3af' : '#6b7280' }}>Auto-allocate from daily income:</label>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-            <input type="number" value={goalAllocationPercent} onChange={(e) => setGoalAllocationPercent(parseFloat(e.target.value) || 0)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`, background: darkMode ? '#374151' : '#f9fafb', color: darkMode ? '#f3f4f6' : '#1f2937' }} />
-            <span style={{ padding: '12px', color: darkMode ? '#f3f4f6' : '#1f2937', fontWeight: '600' }}>%</span>
-          </div>
-          <p style={{ fontSize: '13px', color: darkMode ? '#9ca3af' : '#6b7280', marginTop: '8px' }}>💡 Recommended: 10-20%</p>
-        </div>
-
-        {/* Add Goal Button */}
-        <button onClick={() => { setShowAddGoal(true); setEditingGoal(null); setNewGoal({ name: '', target: '', color: '#14b8a6', priority: 'medium' }); }} style={{ width: '100%', padding: '14px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '16px', marginTop: '15px' }}>➕ Add New Goal</button>
-
-        {/* Add/Edit Goal Form */}
-        {showAddGoal && (
-          <div style={{ marginTop: '15px', padding: '15px', background: darkMode ? '#374151' : '#f3f4f6', borderRadius: '12px', display: 'grid', gap: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <h4 style={{ margin: 0, color: darkMode ? '#f3f4f6' : '#1f2937' }}>{editingGoal ? '✏️ Edit Goal' : '➕ New Goal'}</h4>
-              <button onClick={() => { setShowAddGoal(false); setEditingGoal(null); }} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✕ Cancel</button>
-            </div>
-            <input type="text" placeholder="Goal Name" value={newGoal.name} onChange={(e) => setNewGoal({...newGoal, name: e.target.value})} style={inputStyle(darkMode)} />
-            <input type="number" placeholder="Target Amount (¥)" value={newGoal.target} onChange={(e) => setNewGoal({...newGoal, target: e.target.value})} style={inputStyle(darkMode)} />
-            <select value={newGoal.color} onChange={(e) => setNewGoal({...newGoal, color: e.target.value})} style={inputStyle(darkMode)}>
-              <option value="#14b8a6">🟢 Teal</option>
-              <option value="#8b5cf6">🟣 Purple</option>
-              <option value="#f59e0b">🟠 Orange</option>
-              <option value="#ef4444">🔴 Red</option>
-              <option value="#3b82f6">🔵 Blue</option>
-            </select>
-            <select value={newGoal.priority} onChange={(e) => setNewGoal({...newGoal, priority: e.target.value})} style={inputStyle(darkMode)}>
-              <option value="high">🔥 High Priority</option>
-              <option value="medium">⚡ Medium Priority</option>
-              <option value="low">✨ Low Priority</option>
-            </select>
-            <button onClick={handleAddGoal} style={{ padding: '14px', background: editingGoal ? '#f59e0b' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>{editingGoal ? '💾 Update Goal' : '➕ Add Goal'}</button>
-          </div>
-        )}
-
-        {/* Goals List with Charts */}
-        <div style={{ marginTop: '20px' }}>
-          {monthlyGoals.map((goal) => {
-            const percentage = Math.min(100, Math.round((goal.current / goal.target) * 100));
-            const isComplete = goal.current >= goal.target;
-            return (
-              <div key={goal.id} style={{ background: darkMode ? '#374151' : '#f9fafb', padding: '15px', borderRadius: '12px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '16px', color: darkMode ? '#f3f4f6' : '#1f2937' }}>
-                      {goal.name} {goal.priority === 'high' && <span style={{ fontSize: '11px', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px' }}>HIGH</span>}
-                      {isComplete && <span style={{ fontSize: '11px', background: '#14b8a6', color: 'white', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px' }}>✅ DONE</span>}
-                    </h4>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => handleEditGoal(goal)} style={{ padding: '6px 12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✏️</button>
-                    <button onClick={() => handleDeleteGoal(goal.id)} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>🗑️</button>
-                  </div>
-                </div>
-                
-                {/* Progress Chart */}
-                <ProgressChart current={goal.current} goal={goal.target} label="Progress" color={goal.color} darkMode={darkMode} hideNumbers={hideNumbers} />
-                
-                {/* Contribute Button */}
-                {!isComplete && (
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-                    <input type="number" placeholder="Amount" id={`goal-${goal.id}`} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${darkMode ? '#4b5563' : '#e5e7eb'}`, background: darkMode ? '#1f2937' : 'white', color: darkMode ? '#f3f4f6' : '#1f2937' }} />
-                    <button onClick={() => handleContributeToGoal(goal.id, parseFloat(document.getElementById(`goal-${goal.id}`).value))} style={{ padding: '10px 20px', background: goal.color, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Contribute</button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </CollapsibleSection>
-
-      {/* Credit Cards */}
+      {/* Credit Cards - With Individual Smart Payment */}
       <CollapsibleSection title="Credit cards" icon="💳" darkMode={darkMode} defaultOpen={true}>
-        <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', marginTop: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>➕ Add New Card</button>
+        <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '18px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '14px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', marginTop: '20px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)', transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>➕ Add New Card</button>
+        
         {/* Add Expense Section */}
-        <div style={{ marginTop: '15px', padding: '15px', background: darkMode ? '#374151' : '#f3f4f6', borderRadius: '12px' }}>
-          <p style={{ margin: '0 0 10px 0', fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>➕ Add Today's Expense</p>
-          <div style={{ display: 'grid', gap: '10px' }}>
-            <select value={newExpense.cardId} onChange={(e) => setNewExpense({...newExpense, cardId: e.target.value})} style={inputStyle(darkMode)}>
+        <div style={{ marginTop: '20px', padding: '20px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '16px' }}>
+          <p style={{ margin: '0 0 14px 0', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>➕ Add Today's Expense</p>
+          <div style={{ display: 'grid', gap: '12px' }}>
+            <select value={newExpense.cardId} onChange={(e) => setNewExpense({...newExpense, cardId: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '500' }}>
               <option value="">Select Card</option>
               {creditCards.map(card => (<option key={card.id} value={card.id}>{card.name}</option>))}
             </select>
-            <input type="number" placeholder="Amount (¥)" value={newExpense.amount} onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} style={inputStyle(darkMode)} />
-            <select value={newExpense.category} onChange={(e) => setNewExpense({...newExpense, category: e.target.value})} style={inputStyle(darkMode)}>
+            <input type="number" placeholder="Amount (¥)" value={newExpense.amount} onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '500' }} />
+            <select value={newExpense.category} onChange={(e) => setNewExpense({...newExpense, category: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '500' }}>
               <option value="Shopping">🛒 Shopping</option>
               <option value="Food">🍽️ Food</option>
               <option value="Gas">⛽ Gas</option>
@@ -676,112 +726,176 @@ This will reverse:
               <option value="Health">💊 Health</option>
               <option value="Other">📦 Other</option>
             </select>
-            <button onClick={handleAddCardExpense} style={{ padding: '12px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>Add Expense</button>
+            <button onClick={handleAddCardExpense} style={{ padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>Add Expense</button>
           </div>
         </div>
+
         {/* Add/Edit Card Form */}
         {showAddCard && (
-          <div style={{ marginTop: '15px', padding: '15px', background: darkMode ? '#374151' : '#f3f4f6', borderRadius: '12px', display: 'grid', gap: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <h4 style={{ margin: 0, color: darkMode ? '#f3f4f6' : '#1f2937' }}>{editingCard ? '✏️ Edit Card' : '➕ New Card'}</h4>
-              <button onClick={() => { setShowAddCard(false); setEditingCard(null); }} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✕ Cancel</button>
+          <div style={{ marginTop: '20px', padding: '20px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '16px', display: 'grid', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h4 style={{ margin: 0, color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '700' }}>{editingCard ? '✏️ Edit Card' : '➕ New Card'}</h4>
+              <button onClick={() => { setShowAddCard(false); setEditingCard(null); }} style={{ padding: '8px 14px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>✕ Cancel</button>
             </div>
-            <input type="text" placeholder="Card Name" value={newCard.name} onChange={(e) => setNewCard({...newCard, name: e.target.value})} style={inputStyle(darkMode)} />
-            <input type="number" placeholder="Credit Limit (¥)" value={newCard.limit} onChange={(e) => setNewCard({...newCard, limit: e.target.value})} style={inputStyle(darkMode)} />
-            <input type="number" placeholder="Available Amount (¥)" value={newCard.available} onChange={(e) => setNewCard({...newCard, available: e.target.value})} style={inputStyle(darkMode)} />
-            <input type="number" placeholder="Current Balance (¥)" value={newCard.balance} onChange={(e) => setNewCard({...newCard, balance: e.target.value})} style={inputStyle(darkMode)} />
-            <select value={newCard.paymentDate} onChange={(e) => setNewCard({...newCard, paymentDate: e.target.value})} style={inputStyle(darkMode)}>
+            <input type="text" placeholder="Card Name" value={newCard.name} onChange={(e) => setNewCard({...newCard, name: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }} />
+            <input type="number" placeholder="Credit Limit (¥)" value={newCard.limit} onChange={(e) => setNewCard({...newCard, limit: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }} />
+            <input type="number" placeholder="Available Amount (¥)" value={newCard.available} onChange={(e) => setNewCard({...newCard, available: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }} />
+            <input type="number" placeholder="Current Balance (¥)" value={newCard.balance} onChange={(e) => setNewCard({...newCard, balance: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }} />
+            <select value={newCard.paymentDate} onChange={(e) => setNewCard({...newCard, paymentDate: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>
               <option value="10th">10th (Close: 25th)</option>
               <option value="26th">26th (Close: 11th)</option>
               <option value="27th">27th (Close: 12th)</option>
             </select>
-            <input type="number" placeholder="This Month Payment (¥)" value={newCard.thisCyclePayment} onChange={(e) => setNewCard({...newCard, thisCyclePayment: e.target.value})} style={inputStyle(darkMode)} />
-            <input type="number" placeholder="Next Month Payment (¥)" value={newCard.nextCyclePayment} onChange={(e) => setNewCard({...newCard, nextCyclePayment: e.target.value})} style={inputStyle(darkMode)} />
-            <button onClick={handleAddCard} style={{ padding: '14px', background: editingCard ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>{editingCard ? '💾 Update Card' : '➕ Add Card'}</button>
+            <input type="number" placeholder="This Month Payment (¥)" value={newCard.thisCyclePayment} onChange={(e) => setNewCard({...newCard, thisCyclePayment: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }} />
+            <input type="number" placeholder="Next Month Payment (¥)" value={newCard.nextCyclePayment} onChange={(e) => setNewCard({...newCard, nextCyclePayment: e.target.value})} style={{ padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }} />
+            <button onClick={handleAddCard} style={{ padding: '16px', background: editingCard ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>{editingCard ? '💾 Update Card' : '➕ Add Card'}</button>
           </div>
         )}
+
         {/* Card List */}
-        <div style={{ marginTop: '15px' }}>
-          {creditCards.map((card) => (
-            <div key={card.id} style={{ background: darkMode ? '#374151' : '#f9fafb', padding: '15px', borderRadius: '12px', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <h4 style={{ margin: 0, fontSize: '16px', color: darkMode ? '#f3f4f6' : '#1f2937' }}>{card.name}</h4>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => handleEditCard(card)} style={{ padding: '6px 12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✏️</button>
-                  <button onClick={() => handleDeleteCard(card.id)} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>🗑️</button>
+        <div style={{ marginTop: '20px' }}>
+          {creditCards.map((card) => {
+            const smartPaymentAmount = Math.min(card.thisCyclePayment, cashAvailable);
+            const paymentPercentage = cashAvailable > 0 ? Math.round((smartPaymentAmount / card.thisCyclePayment) * 100) : 0;
+            
+            return (
+              <div key={card.id} style={{ 
+                background: darkMode ? '#1e293b' : '#f8fafc', 
+                padding: '22px', 
+                borderRadius: '16px', 
+                marginBottom: '16px',
+                boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.06)',
+                border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h4 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.name}</h4>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={() => handleEditCard(card)} style={{ padding: '8px 14px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>✏️</button>
+                    <button onClick={() => handleDeleteCard(card.id)} style={{ padding: '8px 14px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>🗑️</button>
+                  </div>
+                </div>
+                
+                <div style={{ padding: '14px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '12px', marginBottom: '14px', fontSize: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>📅 Closing:</span><strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.closingDate} of month</strong></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>💰 Payment:</span><strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.paymentDate} of month</strong></div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '14px', marginBottom: '14px' }}>
+                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Limit:</span> <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>{hideNumbers ? '¥••••' : `¥${card.limit.toLocaleString()}`}</strong></div>
+                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Available:</span> <strong style={{ color: '#14b8a6', fontSize: '16px' }}>{hideNumbers ? '¥••••' : `¥${card.available.toLocaleString()}`}</strong></div>
+                  <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Balance:</span> <strong style={{ color: '#ef4444', fontSize: '18px', fontWeight: '700' }}>{hideNumbers ? '¥••••' : `¥${card.balance.toLocaleString()}`}</strong></div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                  <div style={{ padding: '14px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '12px' }}>
+                    <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '4px' }}>This Month</p>
+                    <p style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: darkMode ? 'white' : '#059669' }}>{hideNumbers ? '¥••••' : `¥${card.thisCyclePayment.toLocaleString()}`}</p>
+                  </div>
+                  <div style={{ padding: '14px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '12px' }}>
+                    <p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '4px' }}>Next Month</p>
+                    <p style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: darkMode ? 'white' : '#0e7490' }}>{hideNumbers ? '¥••••' : `¥${card.nextCyclePayment.toLocaleString()}`}</p>
+                  </div>
+                </div>
+
+                {/* Smart Payment Suggestion for THIS Card */}
+                {card.thisCyclePayment > 0 && (
+                  <div style={{ 
+                    background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    marginBottom: '14px',
+                    boxShadow: '0 4px 12px rgba(16,185,129,0.2)'
+                  }}>
+                    <p style={{ margin: '0 0 10px 0', fontSize: '13px', fontWeight: '600', color: 'white' }}>💡 Smart Payment Suggestion</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)' }}>Based on your cash, you can pay:</span>
+                      <span style={{ fontSize: '20px', fontWeight: '800', color: 'white' }}>{hideNumbers ? '¥••••' : `¥${smartPaymentAmount.toLocaleString()}`}</span>
+                    </div>
+                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>{paymentPercentage}% of this month's payment</p>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input type="number" placeholder="Custom Amount" id={`pay-${card.id}`} defaultValue={smartPaymentAmount} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '2px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: '15px', fontWeight: '600' }} />
+                      <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-${card.id}`).value) || smartPaymentAmount)} style={{ padding: '12px 24px', background: 'white', color: '#059669', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>Pay</button>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <input type="number" placeholder="Amount" id={`pay-manual-${card.id}`} defaultValue={card.thisCyclePayment} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
+                  <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-manual-${card.id}`).value) || card.thisCyclePayment)} style={{ padding: '14px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>Pay</button>
                 </div>
               </div>
-              <div style={{ padding: '10px', background: darkMode ? '#1f2937' : '#e5e7eb', borderRadius: '8px', marginBottom: '10px', fontSize: '13px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>📅 Closing:</span><strong style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>{card.closingDate} of month</strong></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>💰 Payment:</span><strong style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>{card.paymentDate} of month</strong></div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px', marginBottom: '10px' }}>
-                <div><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Limit:</span> <strong style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>{hideNumbers ? '¥••••' : `¥${card.limit.toLocaleString()}`}</strong></div>
-                <div><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Available:</span> <strong style={{ color: '#14b8a6' }}>{hideNumbers ? '¥••••' : `¥${card.available.toLocaleString()}`}</strong></div>
-                <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Balance:</span> <strong style={{ color: '#ef4444', fontSize: '16px' }}>{hideNumbers ? '¥••••' : `¥${card.balance.toLocaleString()}`}</strong></div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                <div style={{ padding: '10px', background: darkMode ? '#059669' : '#ccfbf1', borderRadius: '8px' }}><p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#0d9488' }}>This Month</p><p style={{ margin: '3px 0 0 0', fontSize: '16px', fontWeight: '700', color: darkMode ? '#fff' : '#115e59' }}>{hideNumbers ? '¥••••' : `¥${card.thisCyclePayment.toLocaleString()}`}</p></div>
-                <div style={{ padding: '10px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '8px' }}><p style={{ margin: 0, fontSize: '11px', color: darkMode ? '#fff' : '#0e7490' }}>Next Month</p><p style={{ margin: '3px 0 0 0', fontSize: '16px', fontWeight: '700', color: darkMode ? '#fff' : '#164e63' }}>{hideNumbers ? '¥••••' : `¥${card.nextCyclePayment.toLocaleString()}`}</p></div>
-              </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input type="number" placeholder="Amount" id={`pay-${card.id}`} defaultValue={card.thisCyclePayment} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${darkMode ? '#4b5563' : '#e5e7eb'}`, background: darkMode ? '#1f2937' : 'white', color: darkMode ? '#f3f4f6' : '#1f2937' }} />
-                <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-${card.id}`).value) || card.thisCyclePayment)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Pay</button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-        <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>➕ Add Another Card</button>
+        <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '18px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '14px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', marginTop: '14px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)', transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>➕ Add Another Card</button>
+        
         {cardExpenses.length > 0 && (
-          <div style={{ marginTop: '20px' }}>
-            <p style={{ fontSize: '14px', fontWeight: '600', marginBottom: '10px', color: darkMode ? '#f3f4f6' : '#1f2937' }}>📜 Recent Expenses:</p>
+          <div style={{ marginTop: '24px' }}>
+            <p style={{ fontSize: '15px', fontWeight: '700', marginBottom: '14px', color: darkMode ? '#f8fafc' : '#0f172a' }}>📜 Recent Expenses:</p>
             {cardExpenses.slice(0, 10).map((expense) => (
-              <div key={expense.id} style={{ padding: '12px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '8px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div><p style={{ margin: 0, fontSize: '14px', fontWeight: '500', color: darkMode ? '#f3f4f6' : '#1f2937' }}>{getCategoryIcon(expense.category)} {expense.category}</p><p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#9ca3af' : '#6b7280' }}>{expense.cardName} • {expense.date}</p></div>
-                <div style={{ textAlign: 'right' }}><p style={{ margin: 0, fontWeight: '600', color: '#ef4444' }}>{hideNumbers ? '¥••••' : `¥${expense.amount.toLocaleString()}`}</p><p style={{ margin: '3px 0 0 0', fontSize: '11px', color: expense.cycle === 'This Month' ? '#14b8a6' : '#f59e0b' }}>{expense.cycle}</p></div>
+              <div key={expense.id} style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.04)' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '15px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>{getCategoryIcon(expense.category)} {expense.category}</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{expense.cardName} • {expense.date}</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ margin: 0, fontWeight: '700', color: '#ef4444', fontSize: '16px' }}>{hideNumbers ? '¥••••' : `¥${expense.amount.toLocaleString()}`}</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: expense.cycle === 'This Month' ? '#14b8a6' : '#f59e0b', fontWeight: '600' }}>{expense.cycle}</p>
+                </div>
               </div>
             ))}
           </div>
+        )}
+
+        {/* Spending Pie Chart */}
+        {Object.keys(spendingByCategory).length > 0 && (
+          <SpendingPieChart data={spendingByCategory} darkMode={darkMode} hideNumbers={hideNumbers} />
         )}
       </CollapsibleSection>
 
       {/* Trust Funds & Investment */}
       <CollapsibleSection title="Trust funds & investment" icon="🏦" darkMode={darkMode}>
-        <div style={{ marginTop: '15px' }}>
-          <label style={{ fontSize: '14px', color: darkMode ? '#9ca3af' : '#6b7280' }}>Auto-invest percentage from income:</label>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-            <input type="number" value={investmentPercent} onChange={(e) => setInvestmentPercent(parseFloat(e.target.value) || 0)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`, background: darkMode ? '#374151' : '#f9fafb', color: darkMode ? '#f3f4f6' : '#1f2937' }} />
-            <span style={{ padding: '12px', color: darkMode ? '#f3f4f6' : '#1f2937', fontWeight: '600' }}>%</span>
+        <div style={{ marginTop: '20px' }}>
+          <label style={{ fontSize: '15px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Auto-invest percentage from income:</label>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+            <input type="number" value={investmentPercent} onChange={(e) => setInvestmentPercent(parseFloat(e.target.value) || 0)} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
+            <span style={{ padding: '14px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '700', fontSize: '16px' }}>%</span>
           </div>
-          <p style={{ fontSize: '13px', color: darkMode ? '#9ca3af' : '#6b7280', marginTop: '8px' }}>💡 Recommended: 10-20%</p>
+          <p style={{ fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '10px', fontWeight: '500' }}>💡 Recommended: 10-20%</p>
         </div>
-        <div style={{ marginTop: '20px', padding: '15px', background: darkMode ? '#059669' : '#ccfbf1', borderRadius: '12px' }}><p style={{ margin: 0, fontSize: '13px', color: darkMode ? '#fff' : '#0d9488' }}>Trust Fund Total</p><p style={{ margin: '5px 0 0 0', fontSize: '28px', fontWeight: '700', color: darkMode ? '#fff' : '#115e59' }}>{hideNumbers ? '¥••••' : `¥${trustFund.toLocaleString()}`}</p></div>
-        <div style={{ marginTop: '15px', padding: '15px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '12px' }}><p style={{ margin: 0, fontSize: '13px', color: darkMode ? '#fff' : '#0e7490' }}>SPUS Shares</p><p style={{ margin: '5px 0 0 0', fontSize: '24px', fontWeight: '700', color: darkMode ? '#fff' : '#164e63' }}>{hideNumbers ? '•••• shares' : `${spusShares} shares`}</p></div>
-        <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-          <input type="number" placeholder="Amount to invest" id="invest-amount" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`, background: darkMode ? '#374151' : '#f9fafb', color: darkMode ? '#f3f4f6' : '#1f2937' }} />
-          <button onClick={() => { const amt = parseFloat(document.getElementById('invest-amount').value); if(amt && amt <= cashAvailable) { setTrustFund(trustFund + amt); setSavings(savings + amt); setCashAvailable(cashAvailable - amt); alert('✅ Invested!'); } else { alert('❌ Invalid amount'); } }} style={{ padding: '12px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>Invest</button>
+        <div style={{ marginTop: '24px', padding: '20px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '16px', boxShadow: '0 4px 12px rgba(5,150,105,0.2)' }}>
+          <p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '6px' }}>Trust Fund Total</p>
+          <p style={{ margin: 0, fontSize: '32px', fontWeight: '800', color: darkMode ? 'white' : '#059669' }}>{hideNumbers ? '¥••••' : `¥${trustFund.toLocaleString()}`}</p>
+        </div>
+        <div style={{ marginTop: '18px', padding: '18px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '16px' }}>
+          <p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '6px' }}>SPUS Shares</p>
+          <p style={{ margin: 0, fontSize: '26px', fontWeight: '700', color: darkMode ? 'white' : '#0e7490' }}>{hideNumbers ? '•••• shares' : `${spusShares} shares`}</p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+          <input type="number" placeholder="Amount to invest" id="invest-amount" style={{ flex: 1, padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
+          <button onClick={() => { const amt = parseFloat(document.getElementById('invest-amount').value); if(amt && amt <= cashAvailable) { setTrustFund(trustFund + amt); setSavings(savings + amt); setCashAvailable(cashAvailable - amt); alert('✅ Invested!'); } else { alert('❌ Invalid amount'); } }} style={{ padding: '14px 32px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>Invest</button>
         </div>
       </CollapsibleSection>
 
       {/* Family Support Manager */}
       <CollapsibleSection title="Family support manager" icon="👨‍👩‍👧" darkMode={darkMode}>
-        <div style={{ marginTop: '15px' }}>
-          <div style={{ padding: '15px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '12px', marginBottom: '10px' }}>
+        <div style={{ marginTop: '20px' }}>
+          <div style={{ padding: '18px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '14px', marginBottom: '12px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>🇯🇵 Parents (Japan)</p><p style={{ margin: '5px 0 0 0', fontSize: '13px', color: darkMode ? '#9ca3af' : '#6b7280' }}>Monthly: {hideNumbers ? '¥••••' : `¥${familySupport.parents.amount.toLocaleString()}`}</p><p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b' }}>📅 Scheduled: {familySupport.parents.scheduledDate}</p>{familySupport.parents.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#14b8a6' }}>✓ Last: {familySupport.parents.lastPaid}</p>}</div>
-              <button onClick={() => handleSendFamilySupport('parents', familySupport.parents.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Send</button>
+              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>🇯🇵 Parents (Japan)</p><p style={{ margin: '6px 0 0 0', fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? '¥••••' : `¥${familySupport.parents.amount.toLocaleString()}`}</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#f59e0b', fontWeight: '600' }}>📅 Scheduled: {familySupport.parents.scheduledDate}</p>{familySupport.parents.lastPaid && <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#14b8a6', fontWeight: '600' }}>✓ Last: {familySupport.parents.lastPaid}</p>}</div>
+              <button onClick={() => handleSendFamilySupport('parents', familySupport.parents.amount)} style={{ padding: '12px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>Send</button>
             </div>
           </div>
-          <div style={{ padding: '15px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '12px', marginBottom: '10px' }}>
+          <div style={{ padding: '18px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '14px', marginBottom: '12px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>🇮🇹 Daughter (Italy)</p><p style={{ margin: '5px 0 0 0', fontSize: '13px', color: darkMode ? '#9ca3af' : '#6b7280' }}>Monthly: {hideNumbers ? '¥••••' : `¥${familySupport.daughter.amount.toLocaleString()}`}</p><p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b' }}>📅 Scheduled: {familySupport.daughter.scheduledDate}</p>{familySupport.daughter.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#14b8a6' }}>✓ Last: {familySupport.daughter.lastPaid}</p>}</div>
-              <button onClick={() => handleSendFamilySupport('daughter', familySupport.daughter.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Send</button>
+              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>🇮🇹 Daughter (Italy)</p><p style={{ margin: '6px 0 0 0', fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? '¥••••' : `¥${familySupport.daughter.amount.toLocaleString()}`}</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#f59e0b', fontWeight: '600' }}>📅 Scheduled: {familySupport.daughter.scheduledDate}</p>{familySupport.daughter.lastPaid && <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#14b8a6', fontWeight: '600' }}>✓ Last: {familySupport.daughter.lastPaid}</p>}</div>
+              <button onClick={() => handleSendFamilySupport('daughter', familySupport.daughter.amount)} style={{ padding: '12px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>Send</button>
             </div>
           </div>
-          <div style={{ padding: '15px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '12px' }}>
+          <div style={{ padding: '18px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '14px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>🎁 Other Expenses</p><p style={{ margin: '5px 0 0 0', fontSize: '13px', color: darkMode ? '#9ca3af' : '#6b7280' }}>Monthly: {hideNumbers ? '¥••••' : `¥${familySupport.other.amount.toLocaleString()}`}</p></div>
-              <button onClick={() => handleSendFamilySupport('other', familySupport.other.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Send</button>
+              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>🎁 Other Expenses</p><p style={{ margin: '6px 0 0 0', fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? '¥••••' : `¥${familySupport.other.amount.toLocaleString()}`}</p></div>
+              <button onClick={() => handleSendFamilySupport('other', familySupport.other.amount)} style={{ padding: '12px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>Send</button>
             </div>
           </div>
         </div>
@@ -789,74 +903,70 @@ This will reverse:
 
       {/* Health Funds */}
       <CollapsibleSection title="Health funds" icon="🏥" darkMode={darkMode}>
-        <div style={{ marginTop: '15px', padding: '15px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '12px' }}>
-          <p style={{ margin: 0, fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>💇 Hair Transplant Plan</p>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Saved:</span><strong style={{ color: '#14b8a6' }}>{hideNumbers ? '¥••••' : `¥${healthFunds.hairTransplant.current.toLocaleString()}`} / {hideNumbers ? '¥••••' : `¥${healthFunds.hairTransplant.goal.toLocaleString()}`}</strong></div>
-          <div style={{ width: '100%', height: '8px', background: darkMode ? '#1f2937' : '#e5e7eb', borderRadius: '4px', marginTop: '10px', overflow: 'hidden' }}><div style={{ width: `${(healthFunds.hairTransplant.current / healthFunds.hairTransplant.goal) * 100}%`, height: '100%', background: '#14b8a6', borderRadius: '4px' }}></div></div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-            <input type="number" placeholder="Amount" id="health-amount" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? '#4b5563' : '#e5e7eb'}`, background: darkMode ? '#1f2937' : 'white', color: darkMode ? '#f3f4f6' : '#1f2937' }} />
-            <button onClick={() => handleAddHealthFund(parseFloat(document.getElementById('health-amount').value))} style={{ padding: '12px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>Add</button>
+        <div style={{ marginTop: '20px', padding: '20px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '16px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.06)' }}>
+          <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>💇 Hair Transplant Plan</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '14px', marginBottom: '12px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Saved:</span><strong style={{ color: '#14b8a6', fontSize: '18px' }}>{hideNumbers ? '¥••••' : `¥${healthFunds.hairTransplant.current.toLocaleString()}`} / {hideNumbers ? '¥••••' : `¥${healthFunds.hairTransplant.goal.toLocaleString()}`}</strong></div>
+          <div style={{ width: '100%', height: '10px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '6px', marginTop: '12px', overflow: 'hidden' }}><div style={{ width: `${(healthFunds.hairTransplant.current / healthFunds.hairTransplant.goal) * 100}%`, height: '100%', background: '#14b8a6', borderRadius: '6px', transition: 'width 0.5s ease' }}></div></div>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+            <input type="number" placeholder="Amount" id="health-amount" style={{ flex: 1, padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
+            <button onClick={() => handleAddHealthFund(parseFloat(document.getElementById('health-amount').value))} style={{ padding: '14px 32px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>Add</button>
           </div>
         </div>
       </CollapsibleSection>
 
       {/* Home Expenses */}
       <CollapsibleSection title="Home expenses" icon="🏠" darkMode={darkMode}>
-        <div style={{ marginTop: '15px', display: 'grid', gap: '10px' }}>
+        <div style={{ marginTop: '20px', display: 'grid', gap: '12px' }}>
           {['food', 'gas', 'electricity'].map((type) => (
-            <div key={type} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <span style={{ width: '100px', color: darkMode ? '#f3f4f6' : '#1f2937', fontWeight: '500', textTransform: 'capitalize' }}>{type}</span>
-              <input type="number" placeholder="Amount" id={`home-${type}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`, background: darkMode ? '#374151' : '#f9fafb', color: darkMode ? '#f3f4f6' : '#1f2937' }} />
-              <button onClick={() => handleAddHomeExpense(type, parseFloat(document.getElementById(`home-${type}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>Add</button>
+            <div key={type} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <span style={{ width: '120px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', textTransform: 'capitalize', fontSize: '15px' }}>{type}</span>
+              <input type="number" placeholder="Amount" id={`home-${type}`} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
+              <button onClick={() => handleAddHomeExpense(type, parseFloat(document.getElementById(`home-${type}`).value))} style={{ padding: '14px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>Add</button>
             </div>
           ))}
         </div>
-        <div style={{ marginTop: '15px', padding: '12px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? '#9ca3af' : '#6b7280' }}>This Month Total: <strong style={{ color: darkMode ? '#f3f4f6' : '#1f2937' }}>{hideNumbers ? '¥••••' : `¥${(homeExpenses.food + homeExpenses.gas + homeExpenses.electricity).toLocaleString()}`}</strong></p></div>
+        <div style={{ marginTop: '18px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.06)' }}><p style={{ margin: 0, fontSize: '15px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month Total: <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '18px' }}>{hideNumbers ? '¥••••' : `¥${(homeExpenses.food + homeExpenses.gas + homeExpenses.electricity).toLocaleString()}`}</strong></p></div>
       </CollapsibleSection>
 
       {/* Car Expenses (Capped at ¥2000) */}
       <CollapsibleSection title="Car expenses" icon="🚗" darkMode={darkMode}>
-        <div style={{ marginTop: '15px' }}>
-          <div style={{ padding: '15px', background: darkMode ? '#374151' : '#f9fafb', borderRadius: '12px', marginBottom: '15px' }}>
-            <p style={{ margin: 0, fontWeight: '600', color: darkMode ? '#f3f4f6' : '#1f2937' }}>⛽ Daily Oil</p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>Per Day:</span><strong style={{ color: '#f59e0b' }}>{hideNumbers ? '¥••••' : `¥${carExpenses.dailyOil.toLocaleString()}`} (Max: {hideNumbers ? '¥••••' : `¥${carExpenses.maxDailyOil.toLocaleString()}`})</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}><span style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>This Month:</span><strong style={{ color: '#ef4444' }}>{hideNumbers ? '¥••••' : `¥${carExpenses.totalThisMonth.toLocaleString()}`}</strong></div>
+        <div style={{ marginTop: '20px' }}>
+          <div style={{ padding: '18px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '14px', marginBottom: '18px', boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.06)' }}>
+            <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>⛽ Daily Oil</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Per Day:</span><strong style={{ color: '#f59e0b', fontSize: '16px' }}>{hideNumbers ? '¥••••' : `¥${carExpenses.dailyOil.toLocaleString()}`} (Max: {hideNumbers ? '¥••••' : `¥${carExpenses.maxDailyOil.toLocaleString()}`})</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month:</span><strong style={{ color: '#ef4444', fontSize: '16px' }}>{hideNumbers ? '¥••••' : `¥${carExpenses.totalThisMonth.toLocaleString()}`}</strong></div>
           </div>
-          <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '16px' }}>Add Today's Oil ({hideNumbers ? '¥••••' : `¥${carExpenses.dailyOil.toLocaleString()}`})</button>
+          <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>Add Today's Oil ({hideNumbers ? '¥••••' : `¥${carExpenses.dailyOil.toLocaleString()}`})</button>
         </div>
       </CollapsibleSection>
 
       {/* Pensions & Insurance */}
       <CollapsibleSection title="Pensions & Insurance" icon="🛡️" darkMode={darkMode}>
-        <div style={{ marginTop: '15px', display: 'grid', gap: '10px' }}>
+        <div style={{ marginTop: '20px', display: 'grid', gap: '12px' }}>
           {[{ key: 'nationalPension', label: '🏛️ National Pension' }, { key: 'healthInsurance', label: '🏥 Health Insurance' }, { key: 'carInsurance', label: '🚗 Car Insurance' }, { key: 'lifeInsurance', label: '💼 Life Insurance' }, { key: 'taxes', label: '📋 Taxes' }].map((item) => (
-            <div key={item.key} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <span style={{ width: '150px', color: darkMode ? '#f3f4f6' : '#1f2937', fontWeight: '500', fontSize: '14px' }}>{item.label}</span>
-              <input type="number" placeholder="Amount" id={`pension-${item.key}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`, background: darkMode ? '#374151' : '#f9fafb', color: darkMode ? '#f3f4f6' : '#1f2937' }} />
-              <button onClick={() => handleAddPensionInsurance(item.key, parseFloat(document.getElementById(`pension-${item.key}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>Add</button>
+            <div key={item.key} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <span style={{ width: '160px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', fontSize: '14px' }}>{item.label}</span>
+              <input type="number" placeholder="Amount" id={`pension-${item.key}`} style={{ flex: 1, padding: '14px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
+              <button onClick={() => handleAddPensionInsurance(item.key, parseFloat(document.getElementById(`pension-${item.key}`).value))} style={{ padding: '14px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}>Add</button>
             </div>
           ))}
         </div>
-        <div style={{ marginTop: '15px', padding: '15px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '12px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? '#fff' : '#6d28d9' }}>Total This Month: <strong style={{ fontSize: '18px' }}>{hideNumbers ? '¥••••' : `¥${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
+        <div style={{ marginTop: '18px', padding: '18px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '14px' }}><p style={{ margin: 0, fontSize: '15px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total This Month: <strong style={{ fontSize: '20px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? '¥••••' : `¥${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
       </CollapsibleSection>
 
       {/* Monthly Summary */}
       <CollapsibleSection title="Monthly summary" icon="📈" darkMode={darkMode} defaultOpen={true}>
-        <div style={{ marginTop: '15px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-          <div style={{ padding: '15px', background: darkMode ? '#059669' : '#ccfbf1', borderRadius: '12px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? '#fff' : '#0d9488' }}>M Income</p><p style={{ margin: '5px 0 0 0', fontSize: '20px', fontWeight: '700', color: darkMode ? '#fff' : '#115e59' }}>{hideNumbers ? '¥••••' : `¥${monthlyIncome.toLocaleString()}`}</p></div>
-          <div style={{ padding: '15px', background: darkMode ? '#dc2626' : '#fee2e2', borderRadius: '12px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? '#fff' : '#b91c1c' }}>M Expenses</p><p style={{ margin: '5px 0 0 0', fontSize: '20px', fontWeight: '700', color: darkMode ? '#fff' : '#7f1d1d' }}>{hideNumbers ? '¥••••' : `¥${monthlyExpenses.toLocaleString()}`}</p></div>
-          <div style={{ padding: '15px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '12px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? '#fff' : '#0e7490' }}>M Savings</p><p style={{ margin: '5px 0 0 0', fontSize: '20px', fontWeight: '700', color: darkMode ? '#fff' : '#164e63' }}>{hideNumbers ? '¥••••' : `¥${savings.toLocaleString()}`}</p></div>
+        <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+          <div style={{ padding: '18px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '14px', textAlign: 'center', boxShadow: '0 4px 12px rgba(5,150,105,0.2)' }}><p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '6px' }}>M Income</p><p style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: darkMode ? 'white' : '#059669' }}>{hideNumbers ? '¥••••' : `¥${monthlyIncome.toLocaleString()}`}</p></div>
+          <div style={{ padding: '18px', background: darkMode ? '#dc2626' : '#fee2e2', borderRadius: '14px', textAlign: 'center', boxShadow: '0 4px 12px rgba(220,38,38,0.2)' }}><p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#b91c1c', fontWeight: '600', marginBottom: '6px' }}>M Expenses</p><p style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: darkMode ? 'white' : '#b91c1c' }}>{hideNumbers ? '¥••••' : `¥${monthlyExpenses.toLocaleString()}`}</p></div>
+          <div style={{ padding: '18px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '14px', textAlign: 'center', boxShadow: '0 4px 12px rgba(8,145,178,0.2)' }}><p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '6px' }}>M Savings</p><p style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: darkMode ? 'white' : '#0e7490' }}>{hideNumbers ? '¥••••' : `¥${savings.toLocaleString()}`}</p></div>
         </div>
       </CollapsibleSection>
 
       {/* Footer */}
-      <footer style={{ textAlign: 'center', padding: '20px', color: darkMode ? '#6b7280' : '#9ca3af', fontSize: '13px', marginTop: '20px' }}><p style={{ margin: 0 }}>© 2026 {appName} • Smart Financial Management</p></footer>
+      <footer style={{ textAlign: 'center', padding: '24px', color: darkMode ? '#64748b' : '#94a3b8', fontSize: '14px', marginTop: '32px', borderTop: `2px solid ${darkMode ? '#1e293b' : '#e2e8f0'}` }}><p style={{ margin: 0, fontWeight: '500' }}>© 2026 {appName} • Smart Financial Management</p></footer>
     </div>
   );
-}
-
-function inputStyle(darkMode) {
-  return { padding: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`, background: darkMode ? '#374151' : '#f9fafb', color: darkMode ? '#f3f4f6' : '#1f2937', fontSize: '16px' };
 }
 
 export default App;
