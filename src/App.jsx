@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import { saveData, loadData } from './dataStorage';
 
+// Currency constant - using unicode escape to avoid build errors
+const CURRENCY = '\u00A5';
+
 // Collapsible Section Component
 function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMode }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -59,19 +62,12 @@ function LineChart({ data, darkMode }) {
     <div style={{ marginTop: '20px', padding: '20px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '12px' }}>
       <h4 style={{ margin: '0 0 16px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }}>📈 Financial Progress Overview</h4>
       <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '200px' }} preserveAspectRatio="xMidYMid meet">
-        {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((tick, i) => (
           <line key={i} x1={padding} y1={getY(maxValue * tick)} x2={width - padding} y2={getY(maxValue * tick)} stroke={darkMode ? '#334155' : '#e2e8f0'} strokeWidth="0.5" strokeDasharray="2,2" />
         ))}
-        
-        {/* Debt line (red) */}
         <path d={createPath('debt')} fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        {/* Income line (green) */}
         <path d={createPath('income')} fill="none" stroke="#14b8a6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        {/* Savings line (blue) */}
         <path d={createPath('savings')} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        
-        {/* Data points */}
         {data.map((d, i) => (
           <g key={i}>
             <circle cx={getX(i)} cy={getY(d.debt)} r="1.5" fill="#ef4444" />
@@ -90,13 +86,13 @@ function LineChart({ data, darkMode }) {
 }
 
 // Horizontal Progress Bar Component
-function HorizontalProgressBar({ label, current, target, color, darkMode, prefix = '¥' }) {
+function HorizontalProgressBar({ label, current, target, color, darkMode }) {
   const percentage = Math.min(100, Math.round((current / target) * 100));
   return (
     <div style={{ marginBottom: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
         <span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>{label}</span>
-        <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{prefix}{current.toLocaleString()} / {prefix}{target.toLocaleString()} ({percentage}%)</span>
+        <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{CURRENCY}{current.toLocaleString()} / {CURRENCY}{target.toLocaleString()} ({percentage}%)</span>
       </div>
       <div style={{ width: '100%', height: '10px', background: darkMode ? '#334155' : '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
         <div style={{ width: `${percentage}%`, height: '100%', background: color, borderRadius: '6px', transition: 'width 0.5s ease' }}></div>
@@ -106,7 +102,7 @@ function HorizontalProgressBar({ label, current, target, color, darkMode, prefix
 }
 
 // Editable Number Component
-function EditableNumber({ value, onChange, prefix = '¥', darkMode, hideNumbers, fontSize = '16px' }) {
+function EditableNumber({ value, onChange, prefix = CURRENCY, darkMode, hideNumbers, fontSize = '16px' }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value.toString());
 
@@ -247,7 +243,6 @@ function App() {
   const totalIncomeThisMonth = thisMonthIncomes.reduce((sum, inc) => sum + inc.amount, 0);
   const dailyAverageIncome = totalDaysEarned > 0 ? Math.round(totalIncomeThisMonth / totalDaysEarned) : 0;
   
-  // Check if debts are below threshold (auto-hold logic)
   const debtPercentage = totalCreditLimit > 0 ? (totalDebts / totalCreditLimit) * 100 : 100;
   const shouldHoldSavings = autoHoldEnabled && debtPercentage > debtThresholdPercent;
   
@@ -258,7 +253,7 @@ function App() {
     spendingByCategory[expense.category] = (spendingByCategory[expense.category] || 0) + expense.amount;
   });
 
-  // Chart data (last 6 months simulation)
+  // Chart data
   const chartData = [
     { month: 'Jan', debt: 450000, income: 280000, savings: 45000 },
     { month: 'Feb', debt: 380000, income: 295000, savings: 52000 },
@@ -337,14 +332,11 @@ function App() {
     setDailyIncomes([newIncome, ...dailyIncomes]);
     setCashAvailable(cashAvailable + amount);
     setMonthlyIncome(monthlyIncome + amount);
-    
-    // Only invest if not on hold
     if (!shouldHoldSavings) {
       const investAmount = Math.round(amount * (investmentPercent / 100));
       setTrustFund(trustFund + investAmount);
       setSavings(savings + investAmount);
     }
-    
     const goalAmount = Math.round(amount * (goalAllocationPercent / 100));
     if (goalAmount > 0 && monthlyGoals.length > 0) {
       const incompleteGoals = monthlyGoals.filter(g => g.current < g.target);
@@ -358,13 +350,13 @@ function App() {
       }
     }
     setTodayIncome('');
-    alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} added!${shouldHoldSavings ? ' (Savings/Investments ON HOLD - Focus on debts)' : ''}`);
+    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} added!${shouldHoldSavings ? ' (Savings/Investments ON HOLD - Focus on debts)' : ''}`);
   };
 
   const handleDeleteRecentIncome = (incomeId) => {
     const incomeToDelete = dailyIncomes.find(inc => inc.id === incomeId);
     if (!incomeToDelete) return;
-    if (!confirm(`⚠️ Delete this income entry? Amount: ¥${incomeToDelete.amount.toLocaleString()}`)) return;
+    if (!confirm(`⚠️ Delete this income entry? Amount: ${CURRENCY}${incomeToDelete.amount.toLocaleString()}`)) return;
     const investAmount = Math.round(incomeToDelete.amount * (investmentPercent / 100));
     const goalAmount = Math.round(incomeToDelete.amount * (goalAllocationPercent / 100));
     setCashAvailable(cashAvailable - incomeToDelete.amount);
@@ -383,7 +375,7 @@ function App() {
       ));
     }
     setDailyIncomes(dailyIncomes.filter(inc => inc.id !== incomeId));
-    alert(`🗑️ Income entry deleted!`);
+    alert('🗑️ Income entry deleted!');
   };
 
   const handleAddCard = () => {
@@ -399,10 +391,10 @@ function App() {
     if (editingCard) {
       setCreditCards(creditCards.map(card => card.id === editingCard.id ? { ...card, name: newCard.name, limit, available: finalAvailable, balance: finalBalance, paymentDate: newCard.paymentDate, closingDate, thisCyclePayment: parseFloat(newCard.thisCyclePayment) || card.thisCyclePayment, nextCyclePayment: parseFloat(newCard.nextCyclePayment) || card.nextCyclePayment } : card));
       setEditingCard(null);
-      alert(`✅ Card updated!`);
+      alert('✅ Card updated!');
     } else {
       setCreditCards([...creditCards, { id: Date.now(), name: newCard.name, limit, available: finalAvailable, balance: finalBalance, paymentDate: newCard.paymentDate, closingDate, thisCyclePayment: parseFloat(newCard.thisCyclePayment) || 0, nextCyclePayment: parseFloat(newCard.nextCyclePayment) || 0 }]);
-      alert(`✅ Card added!`);
+      alert('✅ Card added!');
     }
     setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
     setShowAddCard(false);
@@ -433,7 +425,7 @@ function App() {
     setCardExpenses([{ id: Date.now(), cardId: parseInt(cardId), cardName: card.name, amount: expenseAmount, category, date: today, cycle: isCurrentCycle ? 'This Month' : 'Next Month' }, ...cardExpenses]);
     setMonthlyExpenses(monthlyExpenses + expenseAmount);
     setNewExpense({ cardId: '', amount: '', category: 'Shopping' });
-    alert(`✅ ¥${hideNumbers ? '••••' : expenseAmount.toLocaleString()} added!`);
+    alert(`${CURRENCY}${hideNumbers ? '••••' : expenseAmount.toLocaleString()} added!`);
   };
 
   const handlePayCard = (cardId, amount) => {
@@ -448,7 +440,7 @@ function App() {
     }));
     setCashAvailable(cashAvailable - amount);
     setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} paid!`);
+    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} paid!`);
   };
 
   const handleSendFamilySupport = (type, amount) => {
@@ -456,7 +448,7 @@ function App() {
     setFamilySupport({ ...familySupport, [type]: { ...familySupport[type], lastPaid: new Date().toISOString().split('T')[0] } });
     setCashAvailable(cashAvailable - amount);
     setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} sent!`);
+    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} sent!`);
   };
 
   const handleAddHealthFund = (amount) => {
@@ -464,7 +456,7 @@ function App() {
     setHealthFunds({ ...healthFunds, hairTransplant: { ...healthFunds.hairTransplant, current: healthFunds.hairTransplant.current + amount } });
     setCashAvailable(cashAvailable - amount);
     if (!shouldHoldSavings) setSavings(savings + amount);
-    alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} added to health fund!${shouldHoldSavings ? ' (Savings ON HOLD)' : ''}`);
+    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} added to health fund!${shouldHoldSavings ? ' (Savings ON HOLD)' : ''}`);
   };
 
   const handleAddHomeExpense = (type, amount) => {
@@ -472,16 +464,16 @@ function App() {
     setHomeExpenses({ ...homeExpenses, [type]: homeExpenses[type] + amount });
     setCashAvailable(cashAvailable - amount);
     setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} recorded!`);
+    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} recorded!`);
   };
 
   const handleAddCarExpense = () => {
     if (carExpenses.dailyOil > cashAvailable) { alert('❌ Insufficient cash!'); return; }
-    if (carExpenses.dailyOil > carExpenses.maxDailyOil) { alert(`⚠️ Daily oil expense capped at ¥${hideNumbers ? '••••' : carExpenses.maxDailyOil.toLocaleString()}`); return; }
+    if (carExpenses.dailyOil > carExpenses.maxDailyOil) { alert(`⚠️ Daily oil expense capped at ${CURRENCY}${hideNumbers ? '••••' : carExpenses.maxDailyOil.toLocaleString()}`); return; }
     setCarExpenses({ ...carExpenses, totalThisMonth: carExpenses.totalThisMonth + carExpenses.dailyOil });
     setCashAvailable(cashAvailable - carExpenses.dailyOil);
     setMonthlyExpenses(monthlyExpenses + carExpenses.dailyOil);
-    alert(`✅ ¥${hideNumbers ? '••••' : carExpenses.dailyOil.toLocaleString()} recorded!`);
+    alert(`${CURRENCY}${hideNumbers ? '••••' : carExpenses.dailyOil.toLocaleString()} recorded!`);
   };
 
   const handleAddPensionInsurance = (type, amount) => {
@@ -489,7 +481,7 @@ function App() {
     setPensionsInsurance({ ...pensionsInsurance, [type]: pensionsInsurance[type] + amount, total: pensionsInsurance.total + amount });
     setCashAvailable(cashAvailable - amount);
     setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} recorded!`);
+    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} recorded!`);
   };
 
   const handleAddGoal = () => {
@@ -515,7 +507,7 @@ function App() {
     setMonthlyGoals(monthlyGoals.map(goal => goal.id === goalId ? { ...goal, current: Math.min(goal.target, goal.current + amount) } : goal));
     setCashAvailable(cashAvailable - amount);
     if (!shouldHoldSavings) setSavings(savings + amount);
-    alert(`✅ ¥${hideNumbers ? '••••' : amount.toLocaleString()} added to goal!${shouldHoldSavings ? ' (Savings ON HOLD)' : ''}`);
+    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} added to goal!${shouldHoldSavings ? ' (Savings ON HOLD)' : ''}`);
   };
 
   const handleReset = () => { if (confirm('⚠️ Reset ALL data?')) { localStorage.clear(); window.location.reload(); } };
@@ -605,24 +597,24 @@ function App() {
         <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(16,185,129,0.25)' }}>
           <div style={{ fontSize: '28px', marginBottom: '8px' }}>💵</div>
           <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>TOTAL BALANCE</p>
-          <EditableNumber value={cashAvailable} onChange={setCashAvailable} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="32px" />
+          <EditableNumber value={cashAvailable} onChange={setCashAvailable} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="32px" />
         </div>
         <div style={{ background: darkMode ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' : 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(239,68,68,0.25)' }}>
           <div style={{ fontSize: '28px', marginBottom: '8px' }}>⚠️</div>
           <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>TOTAL DEBTS</p>
-          <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: 'white' }}>{hideNumbers ? '¥••••' : `¥${totalDebts.toLocaleString()}`}</p>
+          <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${totalDebts.toLocaleString()}`}</p>
           <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{debtPercentage.toFixed(1)}% of limit</p>
         </div>
         <div style={{ background: darkMode ? 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)' : 'linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(139,92,246,0.25)' }}>
           <div style={{ fontSize: '28px', marginBottom: '8px' }}>📊</div>
           <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>INCOME GOAL</p>
-          <EditableNumber value={monthlyIncomeGoal} onChange={setMonthlyIncomeGoal} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
+          <EditableNumber value={monthlyIncomeGoal} onChange={setMonthlyIncomeGoal} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
           <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{hideNumbers ? '••••' : `${Math.round((monthlyIncome / monthlyIncomeGoal) * 100)}%`} achieved</p>
         </div>
         <div style={{ background: shouldHoldSavings ? (darkMode ? 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' : 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)') : (darkMode ? 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)' : 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)'), padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(59,130,246,0.25)' }}>
           <div style={{ fontSize: '28px', marginBottom: '8px' }}>{shouldHoldSavings ? '⏸️' : '💰'}</div>
           <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>SAVINGS {shouldHoldSavings ? '(HOLD)' : ''}</p>
-          <EditableNumber value={savings} onChange={setSavings} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
+          <EditableNumber value={savings} onChange={setSavings} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
         </div>
       </div>
 
@@ -665,10 +657,10 @@ function App() {
       {/* Daily Income */}
       <CollapsibleSection title="Daily income" icon="📊" darkMode={darkMode} defaultOpen={true}>
         <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-          <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder="Amount (¥)" style={{ flex: 1, padding: '14px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
+          <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder={`Amount (${CURRENCY})`} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
           <button onClick={handleAddIncome} style={{ padding: '14px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>Add</button>
         </div>
-        <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '10px', fontWeight: '500' }}>💡 {hideNumbers ? '••%' : `${investmentPercent}%'} auto-invested {shouldHoldSavings ? '(ON HOLD)' : ''}</p>
+        <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '10px', fontWeight: '500' }}>💡 {hideNumbers ? '••%' : `${investmentPercent}%`} auto-invested {shouldHoldSavings ? '(ON HOLD)' : ''}</p>
         {dailyIncomes.length > 0 && (
           <div style={{ marginTop: '16px' }}>
             <p style={{ fontSize: '14px', fontWeight: '700', marginBottom: '10px', color: darkMode ? '#f8fafc' : '#0f172a' }}>Recent:</p>
@@ -679,7 +671,7 @@ function App() {
                   {index === 0 && <span style={{ marginLeft: '8px', fontSize: '10px', background: '#f59e0b', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>LATEST</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '15px' }}>{hideNumbers ? '+¥••••' : `+¥${income.amount.toLocaleString()}`}</span>
+                  <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '15px' }}>{hideNumbers ? `+${CURRENCY}••••` : `+${CURRENCY}${income.amount.toLocaleString()}`}</span>
                   {index === 0 && <button onClick={() => handleDeleteRecentIncome(income.id)} style={{ padding: '6px 10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>🗑️</button>}
                 </div>
               </div>
@@ -699,7 +691,7 @@ function App() {
               <option value="">Select Card</option>
               {creditCards.map(card => (<option key={card.id} value={card.id}>{card.name}</option>))}
             </select>
-            <input type="number" placeholder="Amount (¥)" value={newExpense.amount} onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '500' }} />
+            <input type="number" placeholder={`Amount (${CURRENCY})`} value={newExpense.amount} onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '500' }} />
             <select value={newExpense.category} onChange={(e) => setNewExpense({...newExpense, category: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '500' }}>
               <option value="Shopping">🛒 Shopping</option>
               <option value="Food">🍽️ Food</option>
@@ -720,16 +712,16 @@ function App() {
               <button onClick={() => { setShowAddCard(false); setEditingCard(null); }} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>✕ Cancel</button>
             </div>
             <input type="text" placeholder="Card Name" value={newCard.name} onChange={(e) => setNewCard({...newCard, name: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <input type="number" placeholder="Credit Limit (¥)" value={newCard.limit} onChange={(e) => setNewCard({...newCard, limit: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <input type="number" placeholder="Remaining Amount (¥)" value={newCard.available} onChange={(e) => setNewCard({...newCard, available: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <input type="number" placeholder="Current Debts (¥)" value={newCard.balance} onChange={(e) => setNewCard({...newCard, balance: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+            <input type="number" placeholder={`Credit Limit (${CURRENCY})`} value={newCard.limit} onChange={(e) => setNewCard({...newCard, limit: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+            <input type="number" placeholder={`Remaining Amount (${CURRENCY})`} value={newCard.available} onChange={(e) => setNewCard({...newCard, available: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+            <input type="number" placeholder={`Current Debts (${CURRENCY})`} value={newCard.balance} onChange={(e) => setNewCard({...newCard, balance: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
             <select value={newCard.paymentDate} onChange={(e) => setNewCard({...newCard, paymentDate: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
               <option value="10th">10th (Close: 25th)</option>
               <option value="26th">26th (Close: 11th)</option>
               <option value="27th">27th (Close: 12th)</option>
             </select>
-            <input type="number" placeholder="This Month Payment (¥)" value={newCard.thisCyclePayment} onChange={(e) => setNewCard({...newCard, thisCyclePayment: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <input type="number" placeholder="Next Month Payment (¥)" value={newCard.nextCyclePayment} onChange={(e) => setNewCard({...newCard, nextCyclePayment: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+            <input type="number" placeholder={`This Month Payment (${CURRENCY})`} value={newCard.thisCyclePayment} onChange={(e) => setNewCard({...newCard, thisCyclePayment: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+            <input type="number" placeholder={`Next Month Payment (${CURRENCY})`} value={newCard.nextCyclePayment} onChange={(e) => setNewCard({...newCard, nextCyclePayment: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
             <button onClick={handleAddCard} style={{ padding: '14px', background: editingCard ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>{editingCard ? '💾 Update Card' : '➕ Add Card'}</button>
           </div>
         )}
@@ -752,16 +744,16 @@ function App() {
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>💰 Payment:</span><strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.paymentDate} of month</strong></div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px', marginBottom: '12px' }}>
-                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Limit:</span> <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>{hideNumbers ? '¥••••' : `¥${card.limit.toLocaleString()}`}</strong></div>
-                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Remaining:</span> <strong style={{ color: '#14b8a6', fontSize: '15px' }}>{hideNumbers ? '¥••••' : `¥${card.available.toLocaleString()}`}</strong></div>
-                  <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Current Debts:</span> <strong style={{ color: '#ef4444', fontSize: '16px', fontWeight: '700' }}>{hideNumbers ? '¥••••' : `¥${card.balance.toLocaleString()}`}</strong></div>
+                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Limit:</span> <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${card.limit.toLocaleString()}`}</strong></div>
+                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Remaining:</span> <strong style={{ color: '#14b8a6', fontSize: '15px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${card.available.toLocaleString()}`}</strong></div>
+                  <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Current Debts:</span> <strong style={{ color: '#ef4444', fontSize: '16px', fontWeight: '700' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${card.balance.toLocaleString()}`}</strong></div>
                 </div>
                 {card.thisCyclePayment > 0 && (
                   <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '14px', borderRadius: '10px', marginBottom: '12px', boxShadow: '0 2px 8px rgba(16,185,129,0.2)' }}>
                     <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: '600', color: 'white' }}>💡 Smart Payment Suggestion</p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>Based on your cash, you can pay:</span>
-                      <span style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>{hideNumbers ? '¥••••' : `¥${smartPaymentAmount.toLocaleString()}`}</span>
+                      <span style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${smartPaymentAmount.toLocaleString()}`}</span>
                     </div>
                     <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{paymentPercentage}% of this month's payment</p>
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -790,7 +782,7 @@ function App() {
                   <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#647480' }}>{expense.cardName} • {expense.date}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ margin: 0, fontWeight: '700', color: '#ef4444', fontSize: '15px' }}>{hideNumbers ? '¥••••' : `¥${expense.amount.toLocaleString()}`}</p>
+                  <p style={{ margin: 0, fontWeight: '700', color: '#ef4444', fontSize: '15px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${expense.amount.toLocaleString()}`}</p>
                   <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: expense.cycle === 'This Month' ? '#14b8a6' : '#f59e0b', fontWeight: '600' }}>{expense.cycle}</p>
                 </div>
               </div>
@@ -811,7 +803,7 @@ function App() {
         </div>
         <div style={{ marginTop: '20px', padding: '16px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '12px' }}>
           <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '4px' }}>Trust Fund Total</p>
-          <EditableNumber value={trustFund} onChange={setTrustFund} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="28px" />
+          <EditableNumber value={trustFund} onChange={setTrustFund} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="28px" />
         </div>
         <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '12px' }}>
           <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '4px' }}>SPUS Shares</p>
@@ -828,19 +820,19 @@ function App() {
         <div style={{ marginTop: '16px' }}>
           <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🇯🇵 Parents (Japan)</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? '¥••••' : `¥${familySupport.parents.amount.toLocaleString()}`}</p><p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: '600' }}>📅 Scheduled: {familySupport.parents.scheduledDate}</p>{familySupport.parents.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#14b8a6', fontWeight: '600' }}>✓ Last: {familySupport.parents.lastPaid}</p>}</div>
+              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🇯🇵 Parents (Japan)</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${familySupport.parents.amount.toLocaleString()}`}</p><p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: '600' }}>📅 Scheduled: {familySupport.parents.scheduledDate}</p>{familySupport.parents.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#14b8a6', fontWeight: '600' }}>✓ Last: {familySupport.parents.lastPaid}</p>}</div>
               <button onClick={() => handleSendFamilySupport('parents', familySupport.parents.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>Send</button>
             </div>
           </div>
           <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🇮🇹 Daughter (Italy)</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? '¥••••' : `¥${familySupport.daughter.amount.toLocaleString()}`}</p><p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: '600' }}>📅 Scheduled: {familySupport.daughter.scheduledDate}</p>{familySupport.daughter.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#14b8a6', fontWeight: '600' }}>✓ Last: {familySupport.daughter.lastPaid}</p>}</div>
+              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🇮🇹 Daughter (Italy)</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${familySupport.daughter.amount.toLocaleString()}`}</p><p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: '600' }}>📅 Scheduled: {familySupport.daughter.scheduledDate}</p>{familySupport.daughter.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#14b8a6', fontWeight: '600' }}>✓ Last: {familySupport.daughter.lastPaid}</p>}</div>
               <button onClick={() => handleSendFamilySupport('daughter', familySupport.daughter.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>Send</button>
             </div>
           </div>
           <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🎁 Other Expenses</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? '¥••••' : `¥${familySupport.other.amount.toLocaleString()}`}</p></div>
+              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🎁 Other Expenses</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${familySupport.other.amount.toLocaleString()}`}</p></div>
               <button onClick={() => handleSendFamilySupport('other', familySupport.other.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>Send</button>
             </div>
           </div>
@@ -851,7 +843,7 @@ function App() {
       <CollapsibleSection title="Health funds" icon="🏥" darkMode={darkMode}>
         <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px' }}>
           <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>💇 Hair Transplant Plan</p>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', marginBottom: '10px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Saved:</span><strong style={{ color: '#14b8a6', fontSize: '16px' }}>{hideNumbers ? '¥••••' : `¥${healthFunds.hairTransplant.current.toLocaleString()}`} / {hideNumbers ? '¥••••' : `¥${healthFunds.hairTransplant.goal.toLocaleString()}`}</strong></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', marginBottom: '10px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Saved:</span><strong style={{ color: '#14b8a6', fontSize: '16px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${healthFunds.hairTransplant.current.toLocaleString()}`} / {hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${healthFunds.hairTransplant.goal.toLocaleString()}`}</strong></div>
           <div style={{ width: '100%', height: '8px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '4px', marginTop: '10px', overflow: 'hidden' }}><div style={{ width: `${(healthFunds.hairTransplant.current / healthFunds.hairTransplant.goal) * 100}%`, height: '100%', background: '#14b8a6', borderRadius: '4px' }}></div></div>
           <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
             <input type="number" placeholder="Amount" id="health-amount" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
@@ -871,7 +863,7 @@ function App() {
             </div>
           ))}
         </div>
-        <div style={{ marginTop: '14px', padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month Total: <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>{hideNumbers ? '¥••••' : `¥${(homeExpenses.food + homeExpenses.gas + homeExpenses.electricity).toLocaleString()}`}</strong></p></div>
+        <div style={{ marginTop: '14px', padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month Total: <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${(homeExpenses.food + homeExpenses.gas + homeExpenses.electricity).toLocaleString()}`}</strong></p></div>
       </CollapsibleSection>
 
       {/* Car Expenses */}
@@ -879,10 +871,10 @@ function App() {
         <div style={{ marginTop: '16px' }}>
           <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '14px' }}>
             <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>⛽ Daily Oil</p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Per Day:</span><strong style={{ color: '#f59e0b', fontSize: '15px' }}>{hideNumbers ? '¥••••' : `¥${carExpenses.dailyOil.toLocaleString()}`} (Max: {hideNumbers ? '¥••••' : `¥${carExpenses.maxDailyOil.toLocaleString()}`})</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month:</span><strong style={{ color: '#ef4444', fontSize: '15px' }}>{hideNumbers ? '¥••••' : `¥${carExpenses.totalThisMonth.toLocaleString()}`}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Per Day:</span><strong style={{ color: '#f59e0b', fontSize: '15px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${carExpenses.dailyOil.toLocaleString()}`} (Max: {hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${carExpenses.maxDailyOil.toLocaleString()}`})</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month:</span><strong style={{ color: '#ef4444', fontSize: '15px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${carExpenses.totalThisMonth.toLocaleString()}`}</strong></div>
           </div>
-          <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>Add Today's Oil ({hideNumbers ? '¥••••' : `¥${carExpenses.dailyOil.toLocaleString()}`})</button>
+          <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>Add Today's Oil ({hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${carExpenses.dailyOil.toLocaleString()}`})</button>
         </div>
       </CollapsibleSection>
 
@@ -897,15 +889,15 @@ function App() {
             </div>
           ))}
         </div>
-        <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total This Month: <strong style={{ fontSize: '18px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? '¥••••' : `¥${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
+        <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total This Month: <strong style={{ fontSize: '18px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
       </CollapsibleSection>
 
       {/* Monthly Summary */}
       <CollapsibleSection title="Monthly summary" icon="📈" darkMode={darkMode} defaultOpen={true}>
         <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-          <div style={{ padding: '14px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '4px' }}>M Income</p><EditableNumber value={monthlyIncome} onChange={setMonthlyIncome} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
-          <div style={{ padding: '14px', background: darkMode ? '#dc2626' : '#fee2e2', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#b91c1c', fontWeight: '600', marginBottom: '4px' }}>M Expenses</p><EditableNumber value={monthlyExpenses} onChange={setMonthlyExpenses} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
-          <div style={{ padding: '14px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '4px' }}>M Savings</p><EditableNumber value={savings} onChange={setSavings} prefix="¥" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
+          <div style={{ padding: '14px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '4px' }}>M Income</p><EditableNumber value={monthlyIncome} onChange={setMonthlyIncome} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
+          <div style={{ padding: '14px', background: darkMode ? '#dc2626' : '#fee2e2', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#b91c1c', fontWeight: '600', marginBottom: '4px' }}>M Expenses</p><EditableNumber value={monthlyExpenses} onChange={setMonthlyExpenses} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
+          <div style={{ padding: '14px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '4px' }}>M Savings</p><EditableNumber value={savings} onChange={setSavings} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
         </div>
       </CollapsibleSection>
 
