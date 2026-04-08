@@ -1,11 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { saveData, loadData } from './dataStorage';
+import { CONFIG, formatJST, autoCategorize, validateAmount, validateDate } from './config';
 
-// Currency constant - using unicode escape to avoid build errors
-const CURRENCY = '\u00A5';
-
-// Collapsible Section Component
+/**
+ * Collapsible Section Component
+ * @param {Object} props - Component props
+ * @param {string} props.title - Section title
+ * @param {string} props.icon - Section icon emoji
+ * @param {React.ReactNode} props.children - Section content
+ * @param {boolean} props.defaultOpen - Whether section is open by default
+ * @param {boolean} props.darkMode - Dark mode state
+ */
 function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMode }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
@@ -15,8 +21,13 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
       marginBottom: '16px',
       overflow: 'hidden',
       boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)',
-      border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`
-    }}>
+      border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`,
+      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+      transform: 'translateZ(0)'
+    }}
+    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = darkMode ? '0 8px 30px rgba(0,0,0,0.4)' : '0 8px 30px rgba(0,0,0,0.1)'; }}
+    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)'; }}
+    >
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
@@ -30,22 +41,38 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
           cursor: 'pointer',
           color: darkMode ? '#f8fafc' : '#0f172a',
           fontWeight: '600',
-          fontSize: '16px'
+          fontSize: '16px',
+          transition: 'background 0.2s ease'
         }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '22px' }}>{icon}</span>
           <span>{title}</span>
         </div>
-        <span style={{ fontSize: '20px', color: '#14b8a6', fontWeight: '300' }}>{isOpen ? '−' : '+'}</span>
+        <span style={{ fontSize: '20px', color: '#14b8a6', fontWeight: '300', transition: 'transform 0.2s ease', transform: isOpen ? 'rotate(0)' : 'rotate(-90deg)' }}>{isOpen ? '−' : '+'}</span>
       </button>
       {isOpen && <div style={{ padding: '0 20px 20px 20px', borderTop: `1px solid ${darkMode ? '#334155' : '#f1f5f9'}` }}>{children}</div>}
     </div>
   );
 }
 
-// Simple Line Chart Component
+/**
+ * Simple Line Chart Component for financial trends
+ * @param {Object} props - Component props
+ * @param {Array} props.data - Chart data array
+ * @param {boolean} props.darkMode - Dark mode state
+ */
 function LineChart({ data, darkMode }) {
+  if (!data || data.length === 0) {
+    return (
+      <div style={{ marginTop: '20px', padding: '40px 20px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '12px', textAlign: 'center' }}>
+        <p style={{ margin: 0, color: darkMode ? '#94a3b8' : '#647480', fontSize: '14px' }}>📊 Add more months to see your financial trends</p>
+      </div>
+    );
+  }
+  
   const maxValue = Math.max(...data.map(d => Math.max(d.debt, d.income, d.savings)));
   const height = 200;
   const width = 100;
@@ -85,14 +112,22 @@ function LineChart({ data, darkMode }) {
   );
 }
 
-// Horizontal Progress Bar Component
+/**
+ * Horizontal Progress Bar Component
+ * @param {Object} props - Component props
+ * @param {string} props.label - Progress label
+ * @param {number} props.current - Current value
+ * @param {number} props.target - Target value
+ * @param {string} props.color - Progress bar color
+ * @param {boolean} props.darkMode - Dark mode state
+ */
 function HorizontalProgressBar({ label, current, target, color, darkMode }) {
-  const percentage = Math.min(100, Math.round((current / target) * 100));
+  const percentage = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
   return (
     <div style={{ marginBottom: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
         <span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>{label}</span>
-        <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{CURRENCY}{current.toLocaleString()} / {CURRENCY}{target.toLocaleString()} ({percentage}%)</span>
+        <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{CONFIG.currency}{current.toLocaleString()} / {CONFIG.currency}{target.toLocaleString()} ({percentage}%)</span>
       </div>
       <div style={{ width: '100%', height: '10px', background: darkMode ? '#334155' : '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
         <div style={{ width: `${percentage}%`, height: '100%', background: color, borderRadius: '6px', transition: 'width 0.5s ease' }}></div>
@@ -101,60 +136,165 @@ function HorizontalProgressBar({ label, current, target, color, darkMode }) {
   );
 }
 
-// Editable Number Component
-function EditableNumber({ value, onChange, prefix = CURRENCY, darkMode, hideNumbers, fontSize = '16px' }) {
+/**
+ * Editable Number Component with validation
+ * @param {Object} props - Component props
+ * @param {number} props.value - Current value
+ * @param {Function} props.onChange - Change handler
+ * @param {string} props.prefix - Currency prefix
+ * @param {boolean} props.darkMode - Dark mode state
+ * @param {boolean} props.hideNumbers - Hide numbers toggle
+ * @param {string} props.fontSize - Font size
+ */
+function EditableNumber({ value, onChange, prefix = CONFIG.currency, darkMode, hideNumbers, fontSize = '16px' }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value.toString());
+  const [error, setError] = useState('');
 
   const handleSave = () => {
+    if (!validateAmount(editValue)) {
+      setError('Invalid amount');
+      return;
+    }
     const num = parseFloat(editValue.replace(/,/g, ''));
     if (!isNaN(num)) {
       onChange(num);
+      setError('');
     }
     setIsEditing(false);
   };
 
   if (isEditing) {
     return (
-      <input
-        type="number"
-        value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-        autoFocus
-        style={{
-          background: darkMode ? '#0f172a' : 'white',
-          border: `2px solid #14b8a6`,
-          borderRadius: '8px',
-          padding: '6px 10px',
-          color: darkMode ? '#f8fafc' : '#0f172a',
-          fontSize: fontSize,
-          fontWeight: '700',
-          width: '120px',
-          outline: 'none'
-        }}
-      />
+      <div style={{ display: 'inline-block' }}>
+        <input
+          type="number"
+          value={editValue}
+          onChange={(e) => { setEditValue(e.target.value); setError(''); }}
+          onBlur={handleSave}
+          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+          autoFocus
+          style={{
+            background: darkMode ? '#0f172a' : 'white',
+            border: `2px solid ${error ? '#ef4444' : '#14b8a6'}`,
+            borderRadius: '8px',
+            padding: '6px 10px',
+            color: darkMode ? '#f8fafc' : '#0f172a',
+            fontSize: fontSize,
+            fontWeight: '700',
+            width: '120px',
+            outline: 'none'
+          }}
+        />
+        {error && <div style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>{error}</div>}
+      </div>
     );
   }
 
   return (
     <span
       onClick={() => setIsEditing(true)}
-      style={{ cursor: 'pointer', fontSize: fontSize, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}
+      style={{ cursor: 'pointer', fontSize: fontSize, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', transition: 'opacity 0.2s ease' }}
       title="Click to edit"
+      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
     >
       {hideNumbers ? '••••' : `${prefix}${value.toLocaleString()}`}
     </span>
   );
 }
 
+/**
+ * Empty State Component
+ * @param {Object} props - Component props
+ * @param {string} props.icon - Empty state icon
+ * @param {string} props.title - Empty state title
+ * @param {string} props.message - Empty state message
+ * @param {Function} props.onAction - Action button handler
+ * @param {string} props.actionText - Action button text
+ * @param {boolean} props.darkMode - Dark mode state
+ */
+function EmptyState({ icon, title, message, onAction, actionText, darkMode }) {
+  return (
+    <div style={{ 
+      padding: '30px 20px', 
+      textAlign: 'center', 
+      background: darkMode ? '#1e293b' : '#f8fafc', 
+      borderRadius: '12px',
+      border: `2px dashed ${darkMode ? '#334155' : '#e2e8f0'}`
+    }}>
+      <div style={{ fontSize: '40px', marginBottom: '12px' }}>{icon}</div>
+      <h4 style={{ margin: '0 0 8px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '600' }}>{title}</h4>
+      <p style={{ margin: '0 0 16px 0', color: darkMode ? '#94a3b8' : '#647480', fontSize: '14px' }}>{message}</p>
+      {onAction && (
+        <button 
+          onClick={onAction}
+          style={{ 
+            padding: '10px 24px', 
+            background: '#14b8a6', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '8px', 
+            cursor: 'pointer', 
+            fontWeight: '600',
+            fontSize: '14px',
+            transition: 'transform 0.1s ease, background 0.2s ease'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}
+        >
+          {actionText}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Error Boundary Component for graceful error handling
+ */
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  
+  componentDidCatch(error, errorInfo) {
+    // Log error to monitoring service if needed
+    console.error('App Error:', error, errorInfo);
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '40px 20px', textAlign: 'center', background: '#fef2f2', borderRadius: '12px', border: '1px solid #fecaca' }}>
+          <div style={{ fontSize: '40px', marginBottom: '12px' }}>⚠️</div>
+          <h3 style={{ margin: '0 0 8px 0', color: '#991b1b', fontSize: '18px' }}>Something went wrong</h3>
+          <p style={{ margin: '0 0 16px 0', color: '#6b7280', fontSize: '14px' }}>Please refresh the page or try again later.</p>
+          <button onClick={() => window.location.reload()} style={{ padding: '10px 24px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Refresh Page</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
+  // Loading state for skeleton screens
+  const [isLoading, setIsLoading] = useState(true);
+  
   // Month Management
   const [currentMonth, setCurrentMonth] = useState(() => {
     const saved = localStorage.getItem('ckSanFlow_currentMonth');
     return saved || new Date().toISOString().slice(0, 7);
   });
+
+  // Last Updated Timestamp
+  const [lastUpdated, setLastUpdated] = useState(() => loadData('lastUpdated', formatJST()));
 
   // Main State
   const [cashAvailable, setCashAvailable] = useState(() => loadData(`cash_${currentMonth}`, 0));
@@ -178,7 +318,7 @@ function App() {
 
   // Card Expenses
   const [cardExpenses, setCardExpenses] = useState(() => loadData(`cardExpenses_${currentMonth}`, []));
-  const [newExpense, setNewExpense] = useState({ cardId: '', amount: '', category: 'Shopping' });
+  const [newExpense, setNewExpense] = useState({ cardId: '', amount: '', category: 'Shopping', description: '' });
   const [newCard, setNewCard] = useState({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
   const [showAddCard, setShowAddCard] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
@@ -188,16 +328,16 @@ function App() {
   const [newGoal, setNewGoal] = useState({ name: '', target: '', color: '#14b8a6', priority: 'medium' });
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
-  const [goalAllocationPercent, setGoalAllocationPercent] = useState(() => loadData('goalAllocationPercent', 15));
+  const [goalAllocationPercent, setGoalAllocationPercent] = useState(() => loadData('goalAllocationPercent', CONFIG.defaultGoalAllocationPercent));
 
   // Trust Fund
-  const [investmentPercent, setInvestmentPercent] = useState(() => loadData('investmentPercent', 10));
+  const [investmentPercent, setInvestmentPercent] = useState(() => loadData('investmentPercent', CONFIG.defaultInvestmentPercent));
   const [trustFund, setTrustFund] = useState(() => loadData(`trustFund_${currentMonth}`, 50000));
   const [spusShares, setSpusShares] = useState(() => loadData(`spusShares_${currentMonth}`, 0));
 
   // Auto-Hold Settings
   const [autoHoldEnabled, setAutoHoldEnabled] = useState(() => loadData('autoHoldEnabled', true));
-  const [debtThresholdPercent, setDebtThresholdPercent] = useState(() => loadData('debtThresholdPercent', 10));
+  const [debtThresholdPercent, setDebtThresholdPercent] = useState(() => loadData('debtThresholdPercent', CONFIG.debtHoldThreshold));
 
   // Family Support
   const [familySupport, setFamilySupport] = useState(() => loadData(`familySupport_${currentMonth}`, {
@@ -215,7 +355,7 @@ function App() {
   const [homeExpenses, setHomeExpenses] = useState(() => loadData(`homeExpenses_${currentMonth}`, { food: 0, gas: 0, electricity: 0 }));
 
   // Car Expenses
-  const [carExpenses, setCarExpenses] = useState(() => loadData(`carExpenses_${currentMonth}`, { dailyOil: 2000, maxDailyOil: 2000, totalThisMonth: 0 }));
+  const [carExpenses, setCarExpenses] = useState(() => loadData(`carExpenses_${currentMonth}`, { dailyOil: CONFIG.maxDailyOil, maxDailyOil: CONFIG.maxDailyOil, totalThisMonth: 0 }));
 
   // Pensions & Insurance
   const [pensionsInsurance, setPensionsInsurance] = useState(() => loadData(`pensionsInsurance_${currentMonth}`, {
@@ -230,6 +370,10 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [appName, setAppName] = useState(() => loadData('appName', 'CkSanFlow'));
+  
+  // Filters & Search
+  const [expenseFilter, setExpenseFilter] = useState('This Month');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // CALCULATIONS
   const totalDebts = creditCards.reduce((sum, card) => sum + card.balance, 0);
@@ -246,7 +390,7 @@ function App() {
   const debtPercentage = totalCreditLimit > 0 ? (totalDebts / totalCreditLimit) * 100 : 100;
   const shouldHoldSavings = autoHoldEnabled && debtPercentage > debtThresholdPercent;
   
-  const recommendedSavings = Math.round(monthlyIncome * 0.10);
+  const recommendedSavings = Math.round(monthlyIncome * (CONFIG.defaultSavingsPercent / 100));
   
   const spendingByCategory = {};
   cardExpenses.forEach(expense => {
@@ -262,31 +406,44 @@ function App() {
     { month: 'May', debt: totalDebts, income: monthlyIncome, savings: savings }
   ];
 
-  // Save data
+  // Simulate loading for skeleton screen effect
   useEffect(() => {
-    saveData(`cash_${currentMonth}`, cashAvailable);
-    saveData(`savings_${currentMonth}`, savings);
-    saveData(`creditCards_${currentMonth}`, creditCards);
-    saveData(`dailyIncomes_${currentMonth}`, dailyIncomes);
-    saveData(`cardExpenses_${currentMonth}`, cardExpenses);
-    saveData(`monthlyGoals_${currentMonth}`, monthlyGoals);
-    saveData(`monthlyIncomeGoal_${currentMonth}`, monthlyIncomeGoal);
-    saveData(`trustFund_${currentMonth}`, trustFund);
-    saveData(`spusShares_${currentMonth}`, spusShares);
+    const timer = setTimeout(() => setIsLoading(false), 300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Save data with timestamp update
+  const saveWithTimestamp = useCallback((key, value) => {
+    saveData(key, value);
+    setLastUpdated(formatJST());
+    saveData('lastUpdated', formatJST());
+  }, []);
+
+  // Save data effect
+  useEffect(() => {
+    saveWithTimestamp(`cash_${currentMonth}`, cashAvailable);
+    saveWithTimestamp(`savings_${currentMonth}`, savings);
+    saveWithTimestamp(`creditCards_${currentMonth}`, creditCards);
+    saveWithTimestamp(`dailyIncomes_${currentMonth}`, dailyIncomes);
+    saveWithTimestamp(`cardExpenses_${currentMonth}`, cardExpenses);
+    saveWithTimestamp(`monthlyGoals_${currentMonth}`, monthlyGoals);
+    saveWithTimestamp(`monthlyIncomeGoal_${currentMonth}`, monthlyIncomeGoal);
+    saveWithTimestamp(`trustFund_${currentMonth}`, trustFund);
+    saveWithTimestamp(`spusShares_${currentMonth}`, spusShares);
     saveData('autoHoldEnabled', autoHoldEnabled);
     saveData('debtThresholdPercent', debtThresholdPercent);
-    saveData(`familySupport_${currentMonth}`, familySupport);
-    saveData(`healthFunds_${currentMonth}`, healthFunds);
-    saveData(`homeExpenses_${currentMonth}`, homeExpenses);
-    saveData(`carExpenses_${currentMonth}`, carExpenses);
-    saveData(`pensionsInsurance_${currentMonth}`, pensionsInsurance);
-    saveData(`monthlyIncome_${currentMonth}`, monthlyIncome);
-    saveData(`monthlyExpenses_${currentMonth}`, monthlyExpenses);
+    saveWithTimestamp(`familySupport_${currentMonth}`, familySupport);
+    saveWithTimestamp(`healthFunds_${currentMonth}`, healthFunds);
+    saveWithTimestamp(`homeExpenses_${currentMonth}`, homeExpenses);
+    saveWithTimestamp(`carExpenses_${currentMonth}`, carExpenses);
+    saveWithTimestamp(`pensionsInsurance_${currentMonth}`, pensionsInsurance);
+    saveWithTimestamp(`monthlyIncome_${currentMonth}`, monthlyIncome);
+    saveWithTimestamp(`monthlyExpenses_${currentMonth}`, monthlyExpenses);
     saveData('appName', appName);
     saveData('hideNumbers', hideNumbers);
-  }, [cashAvailable, savings, creditCards, dailyIncomes, cardExpenses, monthlyGoals, monthlyIncomeGoal, trustFund, spusShares, autoHoldEnabled, debtThresholdPercent, familySupport, healthFunds, homeExpenses, carExpenses, pensionsInsurance, monthlyIncome, monthlyExpenses, appName, hideNumbers, currentMonth]);
+  }, [cashAvailable, savings, creditCards, dailyIncomes, cardExpenses, monthlyGoals, monthlyIncomeGoal, trustFund, spusShares, autoHoldEnabled, debtThresholdPercent, familySupport, healthFunds, homeExpenses, carExpenses, pensionsInsurance, monthlyIncome, monthlyExpenses, appName, hideNumbers, currentMonth, saveWithTimestamp]);
 
-  // Dark mode
+  // Dark mode effect
   useEffect(() => {
     const saved = localStorage.getItem('ckSanFlow_darkMode');
     if (saved) {
@@ -312,7 +469,7 @@ function App() {
     setFamilySupport(loadData(`familySupport_${newMonth}`, { parents: { amount: 75000, scheduledDate: '19th', lastPaid: '' }, daughter: { amount: 25000, scheduledDate: 'anytime', lastPaid: '' }, other: { amount: 0, scheduledDate: 'anytime', lastPaid: '' } }));
     setHealthFunds(loadData(`healthFunds_${newMonth}`, { hairTransplant: { goal: 500000, current: 0 } }));
     setHomeExpenses(loadData(`homeExpenses_${newMonth}`, { food: 0, gas: 0, electricity: 0 }));
-    setCarExpenses(loadData(`carExpenses_${newMonth}`, { dailyOil: 2000, maxDailyOil: 2000, totalThisMonth: 0 }));
+    setCarExpenses(loadData(`carExpenses_${newMonth}`, { dailyOil: CONFIG.maxDailyOil, maxDailyOil: CONFIG.maxDailyOil, totalThisMonth: 0 }));
     setPensionsInsurance(loadData(`pensionsInsurance_${newMonth}`, { nationalPension: 0, healthInsurance: 0, carInsurance: 0, lifeInsurance: 0, taxes: 0, total: 0 }));
     setMonthlyIncome(loadData(`monthlyIncome_${newMonth}`, 0));
     setMonthlyExpenses(loadData(`monthlyExpenses_${newMonth}`, 0));
@@ -327,7 +484,7 @@ function App() {
 
   const handleAddIncome = () => {
     const amount = parseFloat(todayIncome);
-    if (!amount || amount <= 0) { alert('Please enter a valid amount'); return; }
+    if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     const newIncome = { id: Date.now(), amount, date: new Date().toISOString().split('T')[0] };
     setDailyIncomes([newIncome, ...dailyIncomes]);
     setCashAvailable(cashAvailable + amount);
@@ -350,13 +507,13 @@ function App() {
       }
     }
     setTodayIncome('');
-    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} added!${shouldHoldSavings ? ' (Savings/Investments ON HOLD - Focus on debts)' : ''}`);
+    alert(`${CONFIG.currency}${hideNumbers ? '••••' : amount.toLocaleString()} added!${shouldHoldSavings ? ' (Savings/Investments ON HOLD - Focus on debts)' : ''}`);
   };
 
   const handleDeleteRecentIncome = (incomeId) => {
     const incomeToDelete = dailyIncomes.find(inc => inc.id === incomeId);
     if (!incomeToDelete) return;
-    if (!confirm(`⚠️ Delete this income entry? Amount: ${CURRENCY}${incomeToDelete.amount.toLocaleString()}`)) return;
+    if (!confirm(`⚠️ Delete this income entry? Amount: ${CONFIG.currency}${incomeToDelete.amount.toLocaleString()}`)) return;
     const investAmount = Math.round(incomeToDelete.amount * (investmentPercent / 100));
     const goalAmount = Math.round(incomeToDelete.amount * (goalAllocationPercent / 100));
     setCashAvailable(cashAvailable - incomeToDelete.amount);
@@ -404,9 +561,10 @@ function App() {
   const handleDeleteCard = (cardId) => { if (confirm('Delete this card?')) { setCreditCards(creditCards.filter(card => card.id !== cardId)); alert('🗑️ Card deleted'); } };
 
   const handleAddCardExpense = () => {
-    const { cardId, amount, category } = newExpense;
+    const { cardId, amount, category, description } = newExpense;
     const expenseAmount = parseFloat(amount);
-    if (!cardId || !expenseAmount || expenseAmount <= 0) { alert('Please select card and enter amount'); return; }
+    if (!validateAmount(expenseAmount)) { alert('Please enter a valid amount'); return; }
+    if (!cardId) { alert('Please select a card'); return; }
     const card = creditCards.find(c => c.id === parseInt(cardId));
     if (!card) return;
     if (expenseAmount > card.available) { alert('❌ Expense exceeds available credit!'); return; }
@@ -422,13 +580,14 @@ function App() {
       }
       return c;
     }));
-    setCardExpenses([{ id: Date.now(), cardId: parseInt(cardId), cardName: card.name, amount: expenseAmount, category, date: today, cycle: isCurrentCycle ? 'This Month' : 'Next Month' }, ...cardExpenses]);
+    setCardExpenses([{ id: Date.now(), cardId: parseInt(cardId), cardName: card.name, amount: expenseAmount, category: autoCategorize(description) || category, description, date: today, cycle: isCurrentCycle ? 'This Month' : 'Next Month' }, ...cardExpenses]);
     setMonthlyExpenses(monthlyExpenses + expenseAmount);
-    setNewExpense({ cardId: '', amount: '', category: 'Shopping' });
-    alert(`${CURRENCY}${hideNumbers ? '••••' : expenseAmount.toLocaleString()} added!`);
+    setNewExpense({ cardId: '', amount: '', category: 'Shopping', description: '' });
+    alert(`${CONFIG.currency}${hideNumbers ? '••••' : expenseAmount.toLocaleString()} added!`);
   };
 
   const handlePayCard = (cardId, amount) => {
+    if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setCreditCards(creditCards.map(card => {
       if (card.id === cardId) {
@@ -440,53 +599,58 @@ function App() {
     }));
     setCashAvailable(cashAvailable - amount);
     setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} paid!`);
+    alert(`${CONFIG.currency}${hideNumbers ? '••••' : amount.toLocaleString()} paid!`);
   };
 
   const handleSendFamilySupport = (type, amount) => {
+    if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setFamilySupport({ ...familySupport, [type]: { ...familySupport[type], lastPaid: new Date().toISOString().split('T')[0] } });
     setCashAvailable(cashAvailable - amount);
     setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} sent!`);
+    alert(`${CONFIG.currency}${hideNumbers ? '••••' : amount.toLocaleString()} sent!`);
   };
 
   const handleAddHealthFund = (amount) => {
+    if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setHealthFunds({ ...healthFunds, hairTransplant: { ...healthFunds.hairTransplant, current: healthFunds.hairTransplant.current + amount } });
     setCashAvailable(cashAvailable - amount);
     if (!shouldHoldSavings) setSavings(savings + amount);
-    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} added to health fund!${shouldHoldSavings ? ' (Savings ON HOLD)' : ''}`);
+    alert(`${CONFIG.currency}${hideNumbers ? '••••' : amount.toLocaleString()} added to health fund!${shouldHoldSavings ? ' (Savings ON HOLD)' : ''}`);
   };
 
   const handleAddHomeExpense = (type, amount) => {
+    if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setHomeExpenses({ ...homeExpenses, [type]: homeExpenses[type] + amount });
     setCashAvailable(cashAvailable - amount);
     setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} recorded!`);
+    alert(`${CONFIG.currency}${hideNumbers ? '••••' : amount.toLocaleString()} recorded!`);
   };
 
   const handleAddCarExpense = () => {
     if (carExpenses.dailyOil > cashAvailable) { alert('❌ Insufficient cash!'); return; }
-    if (carExpenses.dailyOil > carExpenses.maxDailyOil) { alert(`⚠️ Daily oil expense capped at ${CURRENCY}${hideNumbers ? '••••' : carExpenses.maxDailyOil.toLocaleString()}`); return; }
+    if (carExpenses.dailyOil > CONFIG.maxDailyOil) { alert(`⚠️ Daily oil expense capped at ${CONFIG.currency}${hideNumbers ? '••••' : CONFIG.maxDailyOil.toLocaleString()}`); return; }
     setCarExpenses({ ...carExpenses, totalThisMonth: carExpenses.totalThisMonth + carExpenses.dailyOil });
     setCashAvailable(cashAvailable - carExpenses.dailyOil);
     setMonthlyExpenses(monthlyExpenses + carExpenses.dailyOil);
-    alert(`${CURRENCY}${hideNumbers ? '••••' : carExpenses.dailyOil.toLocaleString()} recorded!`);
+    alert(`${CONFIG.currency}${hideNumbers ? '••••' : carExpenses.dailyOil.toLocaleString()} recorded!`);
   };
 
   const handleAddPensionInsurance = (type, amount) => {
+    if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setPensionsInsurance({ ...pensionsInsurance, [type]: pensionsInsurance[type] + amount, total: pensionsInsurance.total + amount });
     setCashAvailable(cashAvailable - amount);
     setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} recorded!`);
+    alert(`${CONFIG.currency}${hideNumbers ? '••••' : amount.toLocaleString()} recorded!`);
   };
 
   const handleAddGoal = () => {
     if (!newGoal.name || !newGoal.target) { alert('Please fill in goal name and target'); return; }
     const target = parseFloat(newGoal.target);
+    if (!validateAmount(target)) { alert('Please enter a valid target amount'); return; }
     if (editingGoal) {
       setMonthlyGoals(monthlyGoals.map(goal => goal.id === editingGoal.id ? { ...goal, name: newGoal.name, target, color: newGoal.color, priority: newGoal.priority } : goal));
       setEditingGoal(null);
@@ -503,17 +667,27 @@ function App() {
   const handleDeleteGoal = (goalId) => { if (confirm('Delete this goal?')) { setMonthlyGoals(monthlyGoals.filter(g => g.id !== goalId)); alert('🗑️ Goal deleted'); } };
   
   const handleContributeToGoal = (goalId, amount) => {
+    if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setMonthlyGoals(monthlyGoals.map(goal => goal.id === goalId ? { ...goal, current: Math.min(goal.target, goal.current + amount) } : goal));
     setCashAvailable(cashAvailable - amount);
     if (!shouldHoldSavings) setSavings(savings + amount);
-    alert(`${CURRENCY}${hideNumbers ? '••••' : amount.toLocaleString()} added to goal!${shouldHoldSavings ? ' (Savings ON HOLD)' : ''}`);
+    alert(`${CONFIG.currency}${hideNumbers ? '••••' : amount.toLocaleString()} added to goal!${shouldHoldSavings ? ' (Savings ON HOLD)' : ''}`);
   };
 
   const handleReset = () => { if (confirm('⚠️ Reset ALL data?')) { localStorage.clear(); window.location.reload(); } };
+  
   const handleExport = () => {
-    const data = {};
-    Object.keys(localStorage).forEach(key => { if (key.startsWith('ckSanFlow_')) { data[key] = localStorage.getItem(key); } });
+    const data = {
+      version: CONFIG.dataVersion,
+      exportedAt: formatJST(),
+      ...Object.keys(localStorage).reduce((acc, key) => {
+        if (key.startsWith('ckSanFlow_')) {
+          acc[key] = localStorage.getItem(key);
+        }
+        return acc;
+      }, {})
+    };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -521,6 +695,32 @@ function App() {
     a.download = `ckSanFlow_backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     alert('📦 Data exported!');
+  };
+  
+  const handleImport = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result);
+        if (data.version !== CONFIG.dataVersion) {
+          alert('⚠️ Data version mismatch. Some features may not work correctly.');
+        }
+        Object.keys(data).forEach(key => {
+          if (key.startsWith('ckSanFlow_')) {
+            localStorage.setItem(key, data[key]);
+          }
+        });
+        alert('✅ Data imported successfully! Reloading...');
+        window.location.reload();
+      } catch (err) {
+        alert('❌ Failed to import data. Please check the file format.');
+        console.error('Import error:', err);
+      }
+    };
+    reader.readAsText(file);
   };
   
   const toggleDarkMode = () => { 
@@ -544,366 +744,515 @@ function App() {
     for (let i = -6; i <= 6; i++) {
       const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
       const monthStr = d.toISOString().slice(0, 7);
-      const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      const label = d.toLocaleDateString(CONFIG.locale, { month: 'short', year: 'numeric', timeZone: CONFIG.timezone });
       months.push({ value: monthStr, label });
     }
     return months;
   };
 
+  // Filter expenses based on filter and search
+  const filteredExpenses = cardExpenses.filter(expense => {
+    const matchesSearch = !searchQuery || 
+      expense.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.amount.toString().includes(searchQuery);
+    
+    if (expenseFilter === 'This Week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return matchesSearch && new Date(expense.date) >= weekAgo;
+    } else if (expenseFilter === 'This Month') {
+      return matchesSearch && expense.date.startsWith(currentMonth);
+    }
+    return matchesSearch;
+  });
+
+  // Loading skeleton
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: '100vh', background: darkMode ? '#0f172a' : '#f8fafc', padding: '20px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ height: '32px', width: '200px', background: darkMode ? '#1e293b' : '#e2e8f0', borderRadius: '8px', animation: 'pulse 1.5s infinite' }}></div>
+        </div>
+        {[...Array(4)].map((_, i) => (
+          <div key={i} style={{ height: '100px', background: darkMode ? '#1e293b' : '#e2e8f0', borderRadius: '16px', marginBottom: '16px', animation: 'pulse 1.5s infinite', animationDelay: `${i * 0.1}s` }}></div>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="App" style={{ minHeight: '100vh', background: darkMode ? '#0f172a' : '#f8fafc', padding: '20px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-      {/* Header */}
-      <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: darkMode ? '#f8fafc' : '#0f172a' }}>💰 {appName}</h1>
-          <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: darkMode ? '#94a3b8' : '#64748b' }}>Smart Debt-Focused Finance</p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <select value={currentMonth} onChange={(e) => handleMonthChange(e.target.value)} style={{ padding: '10px 14px', background: darkMode ? '#1e293b' : 'white', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, borderRadius: '10px', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
-            {generateMonthOptions().map(m => (<option key={m.value} value={m.value}>{m.label}</option>))}
-          </select>
-          <button onClick={() => setShowCustomize(!showCustomize)} style={{ padding: '10px 14px', background: darkMode ? '#1e293b' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px' }}>⚙️</button>
-          <button onClick={toggleHideNumbers} style={{ padding: '10px 14px', background: hideNumbers ? '#8b5cf6' : (darkMode ? '#1e293b' : 'white'), border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', color: hideNumbers ? 'white' : (darkMode ? '#f8fafc' : '#0f172a') }}>👁️</button>
-          <button onClick={toggleDarkMode} style={{ padding: '10px 14px', background: darkMode ? '#fbbf24' : '#1e293b', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', color: darkMode ? '#0f172a' : 'white' }}>{darkMode ? '☀️' : '🌙'}</button>
-          <button onClick={() => setShowSettings(!showSettings)} style={{ padding: '10px 14px', background: darkMode ? '#1e293b' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px' }}>📊</button>
-        </div>
-      </header>
-
-      {/* Auto-Hold Alert */}
-      {shouldHoldSavings && (
-        <div style={{
-          background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
-          padding: '16px 20px',
-          borderRadius: '12px',
-          marginBottom: '20px',
-          boxShadow: '0 4px 12px rgba(245,158,11,0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
-          <span style={{ fontSize: '28px' }}>⏸️</span>
+    <ErrorBoundary>
+      <div className="App" style={{ minHeight: '100vh', background: darkMode ? '#0f172a' : '#f8fafc', padding: '20px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+        {/* Header with Timestamp */}
+        <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <p style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'white' }}>Savings & Investments ON HOLD</p>
-            <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.95)' }}>Debts at {debtPercentage.toFixed(1)}% - Focus on paying down to {debtThresholdPercent}% to resume</p>
+            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: darkMode ? '#f8fafc' : '#0f172a' }}>💰 {appName}</h1>
+            <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: darkMode ? '#94a3b8' : '#64748b' }}>Smart Debt-Focused Finance</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: darkMode ? '#64748b' : '#94a3b8' }}>🔄 Data synced: {lastUpdated} JST</p>
           </div>
-        </div>
-      )}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select value={currentMonth} onChange={(e) => handleMonthChange(e.target.value)} style={{ padding: '10px 14px', background: darkMode ? '#1e293b' : 'white', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, borderRadius: '10px', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+              {generateMonthOptions().map(m => (<option key={m.value} value={m.value}>{m.label}</option>))}
+            </select>
+            <button onClick={() => setShowCustomize(!showCustomize)} style={{ padding: '10px 14px', background: darkMode ? '#1e293b' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', transition: 'transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>⚙️</button>
+            <button onClick={toggleHideNumbers} style={{ padding: '10px 14px', background: hideNumbers ? '#8b5cf6' : (darkMode ? '#1e293b' : 'white'), border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', color: hideNumbers ? 'white' : (darkMode ? '#f8fafc' : '#0f172a'), transition: 'transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>👁️</button>
+            <button onClick={toggleDarkMode} style={{ padding: '10px 14px', background: darkMode ? '#fbbf24' : '#1e293b', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', color: darkMode ? '#0f172a' : 'white', transition: 'transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>{darkMode ? '☀️' : '🌙'}</button>
+            <button onClick={() => setShowSettings(!showSettings)} style={{ padding: '10px 14px', background: darkMode ? '#1e293b' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', transition: 'transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>📊</button>
+          </div>
+        </header>
 
-      {/* Line Chart */}
-      <LineChart data={chartData} darkMode={darkMode} />
-
-      {/* Dashboard Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(16,185,129,0.25)' }}>
-          <div style={{ fontSize: '28px', marginBottom: '8px' }}>💵</div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>TOTAL BALANCE</p>
-          <EditableNumber value={cashAvailable} onChange={setCashAvailable} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="32px" />
-        </div>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' : 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(239,68,68,0.25)' }}>
-          <div style={{ fontSize: '28px', marginBottom: '8px' }}>⚠️</div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>TOTAL DEBTS</p>
-          <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${totalDebts.toLocaleString()}`}</p>
-          <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{debtPercentage.toFixed(1)}% of limit</p>
-        </div>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)' : 'linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(139,92,246,0.25)' }}>
-          <div style={{ fontSize: '28px', marginBottom: '8px' }}>📊</div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>INCOME GOAL</p>
-          <EditableNumber value={monthlyIncomeGoal} onChange={setMonthlyIncomeGoal} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
-          <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{hideNumbers ? '••••' : `${Math.round((monthlyIncome / monthlyIncomeGoal) * 100)}%`} achieved</p>
-        </div>
-        <div style={{ background: shouldHoldSavings ? (darkMode ? 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' : 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)') : (darkMode ? 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)' : 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)'), padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(59,130,246,0.25)' }}>
-          <div style={{ fontSize: '28px', marginBottom: '8px' }}>{shouldHoldSavings ? '⏸️' : '💰'}</div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>SAVINGS {shouldHoldSavings ? '(HOLD)' : ''}</p>
-          <EditableNumber value={savings} onChange={setSavings} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
-        </div>
-      </div>
-
-      {/* Horizontal Progress Bars */}
-      <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
-        <h3 style={{ margin: '0 0 20px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '700' }}>📊 Financial Overview</h3>
-        <HorizontalProgressBar label="Debt Reduction" current={totalCreditLimit - totalDebts} target={totalCreditLimit} color="#ef4444" darkMode={darkMode} />
-        <HorizontalProgressBar label="Monthly Income Goal" current={monthlyIncome} target={monthlyIncomeGoal} color="#14b8a6" darkMode={darkMode} />
-        <HorizontalProgressBar label="Savings Progress" current={savings} target={recommendedSavings} color={shouldHoldSavings ? '#f59e0b' : '#3b82f6'} darkMode={darkMode} />
-      </div>
-
-      {/* Customize Panel */}
-      {showCustomize && (
-        <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
-          <h3 style={{ margin: '0 0 16px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '700' }}>Customize App</h3>
-          <input type="text" value={appName} onChange={(e) => setAppName(e.target.value)} placeholder="App Name" style={{ width: '100%', padding: '12px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', boxSizing: 'border-box' }} />
-          <button onClick={() => setShowCustomize(false)} style={{ width: '100%', padding: '12px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>✅ Save</button>
-        </div>
-      )}
-
-      {/* Settings Panel */}
-      {showSettings && (
-        <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
-          <h3 style={{ margin: '0 0 16px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '700' }}>Settings</h3>
-          <div style={{ display: 'grid', gap: '10px' }}>
-            <button onClick={toggleDarkMode} style={{ padding: '14px', background: darkMode ? '#fbbf24' : '#0f172a', color: darkMode ? '#0f172a' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</button>
-            <button onClick={toggleHideNumbers} style={{ padding: '14px', background: hideNumbers ? '#8b5cf6' : '#0f172a', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>{hideNumbers ? '👁️ Show Numbers' : '🙈 Hide Numbers'}</button>
-            <div style={{ padding: '14px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '10px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                <input type="checkbox" checked={autoHoldEnabled} onChange={(e) => setAutoHoldEnabled(e.target.checked)} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
-                <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', fontSize: '14px' }}>Auto-Hold Savings Until Debts &lt; {debtThresholdPercent}%</span>
-              </label>
+        {/* Auto-Hold Alert */}
+        {shouldHoldSavings && (
+          <div style={{
+            background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            marginBottom: '20px',
+            boxShadow: '0 4px 12px rgba(245,158,11,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <span style={{ fontSize: '28px' }}>⏸️</span>
+            <div>
+              <p style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'white' }}>Savings & Investments ON HOLD</p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.95)' }}>Debts at {debtPercentage.toFixed(1)}% - Focus on paying down to {debtThresholdPercent}% to resume</p>
             </div>
-            <button onClick={handleExport} style={{ padding: '14px', background: '#667eea', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>📦 Export Backup</button>
-            <button onClick={handleReset} style={{ padding: '14px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>🗑️ Reset All Data</button>
+          </div>
+        )}
+
+        {/* Line Chart */}
+        <LineChart data={chartData} darkMode={darkMode} />
+
+        {/* Dashboard Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(16,185,129,0.25)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+            <div style={{ fontSize: '28px', marginBottom: '8px' }}>💵</div>
+            <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>TOTAL BALANCE</p>
+            <EditableNumber value={cashAvailable} onChange={setCashAvailable} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="32px" />
+          </div>
+          <div style={{ background: darkMode ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' : 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(239,68,68,0.25)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+            <div style={{ fontSize: '28px', marginBottom: '8px' }}>⚠️</div>
+            <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>TOTAL DEBTS</p>
+            <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${totalDebts.toLocaleString()}`}</p>
+            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{debtPercentage.toFixed(1)}% of limit</p>
+          </div>
+          <div style={{ background: darkMode ? 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)' : 'linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(139,92,246,0.25)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+            <div style={{ fontSize: '28px', marginBottom: '8px' }}>📊</div>
+            <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>INCOME GOAL</p>
+            <EditableNumber value={monthlyIncomeGoal} onChange={setMonthlyIncomeGoal} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
+            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{hideNumbers ? '••••' : `${Math.round((monthlyIncome / monthlyIncomeGoal) * 100)}%`} achieved</p>
+          </div>
+          <div style={{ background: shouldHoldSavings ? (darkMode ? 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' : 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)') : (darkMode ? 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)' : 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)'), padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(59,130,246,0.25)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+            <div style={{ fontSize: '28px', marginBottom: '8px' }}>{shouldHoldSavings ? '⏸️' : '💰'}</div>
+            <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600', marginBottom: '6px' }}>SAVINGS {shouldHoldSavings ? '(HOLD)' : ''}</p>
+            <EditableNumber value={savings} onChange={setSavings} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
           </div>
         </div>
-      )}
 
-      {/* Daily Income */}
-      <CollapsibleSection title="Daily income" icon="📊" darkMode={darkMode} defaultOpen={true}>
-        <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-          <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder={`Amount (${CURRENCY})`} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
-          <button onClick={handleAddIncome} style={{ padding: '14px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>Add</button>
+        {/* Horizontal Progress Bars */}
+        <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+          <h3 style={{ margin: '0 0 20px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '700' }}>📊 Financial Overview</h3>
+          <HorizontalProgressBar label="Debt Reduction" current={totalCreditLimit - totalDebts} target={totalCreditLimit} color="#ef4444" darkMode={darkMode} />
+          <HorizontalProgressBar label="Monthly Income Goal" current={monthlyIncome} target={monthlyIncomeGoal} color="#14b8a6" darkMode={darkMode} />
+          <HorizontalProgressBar label="Savings Progress" current={savings} target={recommendedSavings} color={shouldHoldSavings ? '#f59e0b' : '#3b82f6'} darkMode={darkMode} />
         </div>
-        <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '10px', fontWeight: '500' }}>💡 {hideNumbers ? '••%' : `${investmentPercent}%`} auto-invested {shouldHoldSavings ? '(ON HOLD)' : ''}</p>
-        {dailyIncomes.length > 0 && (
+
+        {/* Customize Panel */}
+        {showCustomize && (
+          <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '700' }}>Customize App</h3>
+            <input type="text" value={appName} onChange={(e) => setAppName(e.target.value)} placeholder="App Name" style={{ width: '100%', padding: '12px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', boxSizing: 'border-box' }} />
+            <button onClick={() => setShowCustomize(false)} style={{ width: '100%', padding: '12px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>✅ Save</button>
+          </div>
+        )}
+
+        {/* Settings Panel */}
+        {showSettings && (
+          <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '700' }}>Settings</h3>
+            <div style={{ display: 'grid', gap: '10px' }}>
+              <button onClick={toggleDarkMode} style={{ padding: '14px', background: darkMode ? '#fbbf24' : '#0f172a', color: darkMode ? '#0f172a' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = darkMode ? '#fcd34d' : '#0f172a'; }} onMouseLeave={(e) => { e.currentTarget.style.background = darkMode ? '#fbbf24' : '#0f172a'; }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</button>
+              <button onClick={toggleHideNumbers} style={{ padding: '14px', background: hideNumbers ? '#8b5cf6' : '#0f172a', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = hideNumbers ? '#7c3aed' : '#0f172a'; }} onMouseLeave={(e) => { e.currentTarget.style.background = hideNumbers ? '#8b5cf6' : '#0f172a'; }}>{hideNumbers ? '👁️ Show Numbers' : '🙈 Hide Numbers'}</button>
+              <div style={{ padding: '14px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={autoHoldEnabled} onChange={(e) => setAutoHoldEnabled(e.target.checked)} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
+                  <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', fontSize: '14px' }}>Auto-Hold Savings Until Debts &lt; {debtThresholdPercent}%</span>
+                </label>
+              </div>
+              <button onClick={handleExport} style={{ padding: '14px', background: '#667eea', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#556cd6'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#667eea'; }}>📦 Export Backup</button>
+              <div>
+                <label style={{ display: 'block', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', textAlign: 'center', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>
+                  📥 Import Backup
+                  <input type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
+                </label>
+              </div>
+              <button onClick={handleReset} style={{ padding: '14px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#ef4444'; }}>🗑️ Reset All Data</button>
+            </div>
+          </div>
+        )}
+
+        {/* Daily Income */}
+        <CollapsibleSection title="Daily income" icon="📊" darkMode={darkMode} defaultOpen={true}>
+          {dailyIncomes.length === 0 ? (
+            <EmptyState 
+              icon="📈" 
+              title="No income recorded yet" 
+              message="Start tracking your daily income to see your financial progress"
+              onAction={() => document.querySelector('input[placeholder*="Amount"]')?.focus()}
+              actionText="➕ Add First Income"
+              darkMode={darkMode}
+            />
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder={`Amount (${CONFIG.currency})`} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
+                <button onClick={handleAddIncome} style={{ padding: '14px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'background 0.2s ease, transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.02)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>Add</button>
+              </div>
+              <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '10px', fontWeight: '500' }}>💡 {hideNumbers ? '••%' : `${investmentPercent}%`} auto-invested {shouldHoldSavings ? '(ON HOLD)' : ''}</p>
+              <div style={{ marginTop: '16px' }}>
+                <p style={{ fontSize: '14px', fontWeight: '700', marginBottom: '10px', color: darkMode ? '#f8fafc' : '#0f172a' }}>Recent:</p>
+                {dailyIncomes.slice(0, 5).map((income, index) => (
+                  <div key={income.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = darkMode ? '#334155' : '#f1f5f9'; }} onMouseLeave={(e) => { e.currentTarget.style.background = darkMode ? '#1e293b' : '#f8fafc'; }}>
+                    <div>
+                      <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{income.date}</span>
+                      {index === 0 && <span style={{ marginLeft: '8px', fontSize: '10px', background: '#f59e0b', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>LATEST</span>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '15px' }}>{hideNumbers ? `+${CONFIG.currency}••••` : `+${CONFIG.currency}${income.amount.toLocaleString()}`}</span>
+                      {index === 0 && <button onClick={() => handleDeleteRecentIncome(income.id)} style={{ padding: '6px 10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#ef4444'; }}>🗑️</button>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </CollapsibleSection>
+
+        {/* Credit Cards */}
+        <CollapsibleSection title="Credit cards" icon="💳" darkMode={darkMode} defaultOpen={true}>
+          {creditCards.length === 0 ? (
+            <EmptyState 
+              icon="💳" 
+              title="No credit cards added" 
+              message="Add your first credit card to start tracking debts and payments"
+              onAction={() => { setShowAddCard(true); setEditingCard(null); }}
+              actionText="➕ Add First Card"
+              darkMode={darkMode}
+            />
+          ) : (
+            <>
+              <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'background 0.2s ease, transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.01)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>➕ Add New Card</button>
+              
+              <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px' }}>
+                <p style={{ margin: '0 0 12px 0', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>➕ Add Today's Expense</p>
+                <div style={{ display: 'grid', gap: '10px' }}>
+                  <select value={newExpense.cardId} onChange={(e) => setNewExpense({...newExpense, cardId: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '500' }}>
+                    <option value="">Select Card</option>
+                    {creditCards.map(card => (<option key={card.id} value={card.id}>{card.name}</option>))}
+                  </select>
+                  <input type="text" placeholder="Description (e.g., 'Amazon purchase')" value={newExpense.description} onChange={(e) => { setNewExpense({...newExpense, description: e.target.value}); if (e.target.value) setNewExpense(prev => ({...prev, category: autoCategorize(e.target.value)})); }} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '500' }} />
+                  <input type="number" placeholder={`Amount (${CONFIG.currency})`} value={newExpense.amount} onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '500' }} />
+                  <select value={newExpense.category} onChange={(e) => setNewExpense({...newExpense, category: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '500' }}>
+                    <option value="Shopping">🛒 Shopping</option>
+                    <option value="Food">🍽️ Food</option>
+                    <option value="Gas">⛽ Gas</option>
+                    <option value="Transport">🚗 Transport</option>
+                    <option value="Entertainment">🎬 Entertainment</option>
+                    <option value="Health">💊 Health</option>
+                    <option value="Other">📦 Other</option>
+                  </select>
+                  <button onClick={handleAddCardExpense} style={{ padding: '12px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Add Expense</button>
+                </div>
+              </div>
+
+              {showAddCard && (
+                <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', display: 'grid', gap: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <h4 style={{ margin: 0, color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '700' }}>{editingCard ? '✏️ Edit Card' : '➕ New Card'}</h4>
+                    <button onClick={() => { setShowAddCard(false); setEditingCard(null); }} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#ef4444'; }}>✕ Cancel</button>
+                  </div>
+                  <input type="text" placeholder="Card Name" value={newCard.name} onChange={(e) => setNewCard({...newCard, name: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                  <input type="number" placeholder={`Credit Limit (${CONFIG.currency})`} value={newCard.limit} onChange={(e) => setNewCard({...newCard, limit: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                  <input type="number" placeholder={`Remaining Amount (${CONFIG.currency})`} value={newCard.available} onChange={(e) => setNewCard({...newCard, available: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                  <input type="number" placeholder={`Current Debts (${CONFIG.currency})`} value={newCard.balance} onChange={(e) => setNewCard({...newCard, balance: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                  <select value={newCard.paymentDate} onChange={(e) => setNewCard({...newCard, paymentDate: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
+                    <option value="10th">10th (Close: 25th)</option>
+                    <option value="26th">26th (Close: 11th)</option>
+                    <option value="27th">27th (Close: 12th)</option>
+                  </select>
+                  <input type="number" placeholder={`This Month Payment (${CONFIG.currency})`} value={newCard.thisCyclePayment} onChange={(e) => setNewCard({...newCard, thisCyclePayment: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                  <input type="number" placeholder={`Next Month Payment (${CONFIG.currency})`} value={newCard.nextCyclePayment} onChange={(e) => setNewCard({...newCard, nextCyclePayment: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                  <button onClick={handleAddCard} style={{ padding: '14px', background: editingCard ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = editingCard ? '#d97706' : '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = editingCard ? '#f59e0b' : '#14b8a6'; }}>{editingCard ? '💾 Update Card' : '➕ Add Card'}</button>
+                </div>
+              )}
+
+              <div style={{ marginTop: '16px' }}>
+                {creditCards.map((card) => {
+                  // Smart payment suggestion: propose paying off as much debt as possible with available cash
+                  const suggestedPayment = Math.min(card.balance, cashAvailable, card.thisCyclePayment);
+                  const paymentPercentage = card.thisCyclePayment > 0 ? Math.round((suggestedPayment / card.thisCyclePayment) * 100) : 0;
+                  
+                  return (
+                    <div key={card.id} style={{ background: darkMode ? '#1e293b' : '#f8fafc', padding: '18px', borderRadius: '12px', marginBottom: '12px', boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.04)', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, transition: 'box-shadow 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.boxShadow = darkMode ? '0 4px 16px rgba(0,0,0,0.3)' : '0 4px 16px rgba(0,0,0,0.08)'; }} onMouseLeave={(e) => { e.currentTarget.style.boxShadow = darkMode ? '0 2px 8px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.04)'; }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.name}</h4>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => handleEditCard(card)} style={{ padding: '6px 12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#d97706'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#f59e0b'; }}>✏️</button>
+                          <button onClick={() => handleDeleteCard(card.id)} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#ef4444'; }}>🗑️</button>
+                        </div>
+                      </div>
+                      <div style={{ padding: '12px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '10px', marginBottom: '12px', fontSize: '13px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>📅 Closing:</span><strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.closingDate} of month</strong></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>💰 Payment:</span><strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.paymentDate} of month</strong></div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px', marginBottom: '12px' }}>
+                        <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Limit:</span> <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.limit.toLocaleString()}`}</strong></div>
+                        <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Remaining:</span> <strong style={{ color: '#14b8a6', fontSize: '15px' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.available.toLocaleString()}`}</strong></div>
+                        <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Current Debts:</span> <strong style={{ color: '#ef4444', fontSize: '16px', fontWeight: '700' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.balance.toLocaleString()}`}</strong></div>
+                      </div>
+                      
+                      {/* Smart Payment Suggestion */}
+                      {card.balance > 0 && cashAvailable > 0 && (
+                        <div style={{ 
+                          background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
+                          padding: '14px',
+                          borderRadius: '10px',
+                          marginBottom: '12px',
+                          boxShadow: '0 2px 8px rgba(16,185,129,0.2)'
+                        }}>
+                          <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: '600', color: 'white' }}>💡 Smart Payment Suggestion</p>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>Based on your cash, pay:</span>
+                            <span style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${suggestedPayment.toLocaleString()}`}</span>
+                          </div>
+                          <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{paymentPercentage}% of current debts</p>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <input type="number" placeholder="Custom Amount" id={`pay-${card.id}`} defaultValue={suggestedPayment} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '2px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: '14px', fontWeight: '600' }} />
+                            <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-${card.id}`).value) || suggestedPayment)} style={{ padding: '10px 20px', background: 'white', color: '#059669', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', transition: 'transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>Pay</button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <input type="number" placeholder="Amount" id={`pay-manual-${card.id}`} defaultValue={card.thisCyclePayment} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
+                        <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-manual-${card.id}`).value) || card.thisCyclePayment)} style={{ padding: '12px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', transition: 'background 0.2s ease, transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.02)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>Pay</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'background 0.2s ease, transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.01)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>➕ Add Another Card</button>
+              
+              {filteredExpenses.length > 0 ? (
+                <div style={{ marginTop: '20px' }}>
+                  {/* Search & Filters */}
+                  <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <input 
+                      type="text" 
+                      placeholder="🔍 Search expenses..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      style={{ flex: 1, minWidth: '150px', padding: '10px 14px', borderRadius: '8px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '13px' }}
+                    />
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {['This Week', 'This Month', 'All'].map(filter => (
+                        <button 
+                          key={filter}
+                          onClick={() => setExpenseFilter(filter)}
+                          style={{ 
+                            padding: '8px 14px', 
+                            background: expenseFilter === filter ? '#14b8a6' : (darkMode ? '#334155' : '#e2e8f0'), 
+                            color: expenseFilter === filter ? 'white' : (darkMode ? '#f8fafc' : '#0f172a'), 
+                            border: 'none', 
+                            borderRadius: '6px', 
+                            cursor: 'pointer', 
+                            fontSize: '12px',
+                            fontWeight: expenseFilter === filter ? '600' : '400',
+                            transition: 'background 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => { if (expenseFilter !== filter) e.currentTarget.style.background = darkMode ? '#475569' : '#cbd5e1'; }}
+                          onMouseLeave={(e) => { if (expenseFilter !== filter) e.currentTarget.style.background = darkMode ? '#334155' : '#e2e8f0'; }}
+                        >
+                          {filter}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <p style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', color: darkMode ? '#f8fafc' : '#0f172a' }}>📜 Recent Expenses:</p>
+                  {filteredExpenses.slice(0, 10).map((expense) => (
+                    <div key={expense.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = darkMode ? '#334155' : '#f1f5f9'; }} onMouseLeave={(e) => { e.currentTarget.style.background = darkMode ? '#1e293b' : '#f8fafc'; }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>{getCategoryIcon(expense.category)} {expense.category}</p>
+                        <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#647480' }}>{expense.cardName} • {expense.date}{expense.description && ` • ${expense.description}`}</p>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <p style={{ margin: 0, fontWeight: '700', color: '#ef4444', fontSize: '15px' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${expense.amount.toLocaleString()}`}</p>
+                        <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: expense.cycle === 'This Month' ? '#14b8a6' : '#f59e0b', fontWeight: '600' }}>{expense.cycle}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState 
+                  icon="📋" 
+                  title="No expenses found" 
+                  message={searchQuery ? "Try a different search term" : "Add your first expense to start tracking"}
+                  onAction={() => document.querySelector('input[placeholder*="Description"]')?.focus()}
+                  actionText="➕ Add Expense"
+                  darkMode={darkMode}
+                />
+              )}
+            </>
+          )}
+        </CollapsibleSection>
+
+        {/* Trust Funds */}
+        <CollapsibleSection title="Trust funds & investment" icon="🏦" darkMode={darkMode}>
           <div style={{ marginTop: '16px' }}>
-            <p style={{ fontSize: '14px', fontWeight: '700', marginBottom: '10px', color: darkMode ? '#f8fafc' : '#0f172a' }}>Recent:</p>
-            {dailyIncomes.slice(0, 5).map((income, index) => (
-              <div key={income.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{income.date}</span>
-                  {index === 0 && <span style={{ marginLeft: '8px', fontSize: '10px', background: '#f59e0b', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>LATEST</span>}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '15px' }}>{hideNumbers ? `+${CURRENCY}••••` : `+${CURRENCY}${income.amount.toLocaleString()}`}</span>
-                  {index === 0 && <button onClick={() => handleDeleteRecentIncome(income.id)} style={{ padding: '6px 10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>🗑️</button>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CollapsibleSection>
-
-      {/* Credit Cards */}
-      <CollapsibleSection title="Credit cards" icon="💳" darkMode={darkMode} defaultOpen={true}>
-        <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>➕ Add New Card</button>
-        
-        <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px' }}>
-          <p style={{ margin: '0 0 12px 0', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>➕ Add Today's Expense</p>
-          <div style={{ display: 'grid', gap: '10px' }}>
-            <select value={newExpense.cardId} onChange={(e) => setNewExpense({...newExpense, cardId: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '500' }}>
-              <option value="">Select Card</option>
-              {creditCards.map(card => (<option key={card.id} value={card.id}>{card.name}</option>))}
-            </select>
-            <input type="number" placeholder={`Amount (${CURRENCY})`} value={newExpense.amount} onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '500' }} />
-            <select value={newExpense.category} onChange={(e) => setNewExpense({...newExpense, category: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '500' }}>
-              <option value="Shopping">🛒 Shopping</option>
-              <option value="Food">🍽️ Food</option>
-              <option value="Gas">⛽ Gas</option>
-              <option value="Transport">🚗 Transport</option>
-              <option value="Entertainment">🎬 Entertainment</option>
-              <option value="Health">💊 Health</option>
-              <option value="Other">📦 Other</option>
-            </select>
-            <button onClick={handleAddCardExpense} style={{ padding: '12px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>Add Expense</button>
-          </div>
-        </div>
-
-        {showAddCard && (
-          <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', display: 'grid', gap: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <h4 style={{ margin: 0, color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '700' }}>{editingCard ? '✏️ Edit Card' : '➕ New Card'}</h4>
-              <button onClick={() => { setShowAddCard(false); setEditingCard(null); }} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>✕ Cancel</button>
+            <label style={{ fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Auto-invest percentage from income:</label>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <input type="number" value={investmentPercent} onChange={(e) => setInvestmentPercent(parseFloat(e.target.value) || 0)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
+              <span style={{ padding: '12px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '700', fontSize: '15px' }}>%</span>
             </div>
-            <input type="text" placeholder="Card Name" value={newCard.name} onChange={(e) => setNewCard({...newCard, name: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <input type="number" placeholder={`Credit Limit (${CURRENCY})`} value={newCard.limit} onChange={(e) => setNewCard({...newCard, limit: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <input type="number" placeholder={`Remaining Amount (${CURRENCY})`} value={newCard.available} onChange={(e) => setNewCard({...newCard, available: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <input type="number" placeholder={`Current Debts (${CURRENCY})`} value={newCard.balance} onChange={(e) => setNewCard({...newCard, balance: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <select value={newCard.paymentDate} onChange={(e) => setNewCard({...newCard, paymentDate: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
-              <option value="10th">10th (Close: 25th)</option>
-              <option value="26th">26th (Close: 11th)</option>
-              <option value="27th">27th (Close: 12th)</option>
-            </select>
-            <input type="number" placeholder={`This Month Payment (${CURRENCY})`} value={newCard.thisCyclePayment} onChange={(e) => setNewCard({...newCard, thisCyclePayment: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <input type="number" placeholder={`Next Month Payment (${CURRENCY})`} value={newCard.nextCyclePayment} onChange={(e) => setNewCard({...newCard, nextCyclePayment: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <button onClick={handleAddCard} style={{ padding: '14px', background: editingCard ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>{editingCard ? '💾 Update Card' : '➕ Add Card'}</button>
+            <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '8px', fontWeight: '500' }}>💡 Recommended: 10-20% {shouldHoldSavings && '(Currently ON HOLD)'}</p>
           </div>
-        )}
-
-        <div style={{ marginTop: '16px' }}>
-          {creditCards.map((card) => {
-            const smartPaymentAmount = Math.min(card.thisCyclePayment, cashAvailable);
-            const paymentPercentage = card.thisCyclePayment > 0 ? Math.round((smartPaymentAmount / card.thisCyclePayment) * 100) : 0;
-            return (
-              <div key={card.id} style={{ background: darkMode ? '#1e293b' : '#f8fafc', padding: '18px', borderRadius: '12px', marginBottom: '12px', boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.04)', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.name}</h4>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => handleEditCard(card)} style={{ padding: '6px 12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>✏️</button>
-                    <button onClick={() => handleDeleteCard(card.id)} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>🗑️</button>
-                  </div>
-                </div>
-                <div style={{ padding: '12px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '10px', marginBottom: '12px', fontSize: '13px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>📅 Closing:</span><strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.closingDate} of month</strong></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>💰 Payment:</span><strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.paymentDate} of month</strong></div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px', marginBottom: '12px' }}>
-                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Limit:</span> <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${card.limit.toLocaleString()}`}</strong></div>
-                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Remaining:</span> <strong style={{ color: '#14b8a6', fontSize: '15px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${card.available.toLocaleString()}`}</strong></div>
-                  <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '500' }}>Current Debts:</span> <strong style={{ color: '#ef4444', fontSize: '16px', fontWeight: '700' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${card.balance.toLocaleString()}`}</strong></div>
-                </div>
-                {card.thisCyclePayment > 0 && (
-                  <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '14px', borderRadius: '10px', marginBottom: '12px', boxShadow: '0 2px 8px rgba(16,185,129,0.2)' }}>
-                    <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: '600', color: 'white' }}>💡 Smart Payment Suggestion</p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>Based on your cash, you can pay:</span>
-                      <span style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${smartPaymentAmount.toLocaleString()}`}</span>
-                    </div>
-                    <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{paymentPercentage}% of this month's payment</p>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input type="number" placeholder="Custom Amount" id={`pay-${card.id}`} defaultValue={smartPaymentAmount} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '2px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: '14px', fontWeight: '600' }} />
-                      <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-${card.id}`).value) || smartPaymentAmount)} style={{ padding: '10px 20px', background: 'white', color: '#059669', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>Pay</button>
-                    </div>
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <input type="number" placeholder="Amount" id={`pay-manual-${card.id}`} defaultValue={card.thisCyclePayment} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
-                  <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-manual-${card.id}`).value) || card.thisCyclePayment)} style={{ padding: '12px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>Pay</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>➕ Add Another Card</button>
-        
-        {cardExpenses.length > 0 && (
-          <div style={{ marginTop: '20px' }}>
-            <p style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', color: darkMode ? '#f8fafc' : '#0f172a' }}>📜 Recent Expenses:</p>
-            {cardExpenses.slice(0, 10).map((expense) => (
-              <div key={expense.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>{getCategoryIcon(expense.category)} {expense.category}</p>
-                  <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#647480' }}>{expense.cardName} • {expense.date}</p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ margin: 0, fontWeight: '700', color: '#ef4444', fontSize: '15px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${expense.amount.toLocaleString()}`}</p>
-                  <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: expense.cycle === 'This Month' ? '#14b8a6' : '#f59e0b', fontWeight: '600' }}>{expense.cycle}</p>
-                </div>
-              </div>
-            ))}
+          <div style={{ marginTop: '20px', padding: '16px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '12px' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '4px' }}>Trust Fund Total</p>
+            <EditableNumber value={trustFund} onChange={setTrustFund} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="28px" />
           </div>
-        )}
-      </CollapsibleSection>
-
-      {/* Trust Funds */}
-      <CollapsibleSection title="Trust funds & investment" icon="🏦" darkMode={darkMode}>
-        <div style={{ marginTop: '16px' }}>
-          <label style={{ fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Auto-invest percentage from income:</label>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-            <input type="number" value={investmentPercent} onChange={(e) => setInvestmentPercent(parseFloat(e.target.value) || 0)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
-            <span style={{ padding: '12px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '700', fontSize: '15px' }}>%</span>
+          <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '12px' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '4px' }}>SPUS Shares</p>
+            <EditableNumber value={spusShares} onChange={setSpusShares} prefix="" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="22px" />
           </div>
-          <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '8px', fontWeight: '500' }}>💡 Recommended: 10-20% {shouldHoldSavings && '(Currently ON HOLD)'}</p>
-        </div>
-        <div style={{ marginTop: '20px', padding: '16px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '12px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '4px' }}>Trust Fund Total</p>
-          <EditableNumber value={trustFund} onChange={setTrustFund} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="28px" />
-        </div>
-        <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '12px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '4px' }}>SPUS Shares</p>
-          <EditableNumber value={spusShares} onChange={setSpusShares} prefix="" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="22px" />
-        </div>
-        <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-          <input type="number" placeholder="Amount to invest" id="invest-amount" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
-          <button onClick={() => { const amt = parseFloat(document.getElementById('invest-amount').value); if(amt && amt <= cashAvailable) { if(!shouldHoldSavings) { setTrustFund(trustFund + amt); setSavings(savings + amt); setCashAvailable(cashAvailable - amt); alert('✅ Invested!'); } else { alert('⏸️ Investments ON HOLD - Focus on paying debts first!'); } } else { alert('❌ Invalid amount'); } }} style={{ padding: '12px 28px', background: shouldHoldSavings ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: shouldHoldSavings ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '14px', opacity: shouldHoldSavings ? 0.7 : 1 }}>Invest</button>
-        </div>
-      </CollapsibleSection>
-
-      {/* Family Support */}
-      <CollapsibleSection title="Family support manager" icon="👨‍👩‍👧" darkMode={darkMode}>
-        <div style={{ marginTop: '16px' }}>
-          <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🇯🇵 Parents (Japan)</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${familySupport.parents.amount.toLocaleString()}`}</p><p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: '600' }}>📅 Scheduled: {familySupport.parents.scheduledDate}</p>{familySupport.parents.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#14b8a6', fontWeight: '600' }}>✓ Last: {familySupport.parents.lastPaid}</p>}</div>
-              <button onClick={() => handleSendFamilySupport('parents', familySupport.parents.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>Send</button>
-            </div>
-          </div>
-          <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🇮🇹 Daughter (Italy)</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${familySupport.daughter.amount.toLocaleString()}`}</p><p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: '600' }}>📅 Scheduled: {familySupport.daughter.scheduledDate}</p>{familySupport.daughter.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#14b8a6', fontWeight: '600' }}>✓ Last: {familySupport.daughter.lastPaid}</p>}</div>
-              <button onClick={() => handleSendFamilySupport('daughter', familySupport.daughter.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>Send</button>
-            </div>
-          </div>
-          <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🎁 Other Expenses</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${familySupport.other.amount.toLocaleString()}`}</p></div>
-              <button onClick={() => handleSendFamilySupport('other', familySupport.other.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>Send</button>
-            </div>
-          </div>
-        </div>
-      </CollapsibleSection>
-
-      {/* Health Funds */}
-      <CollapsibleSection title="Health funds" icon="🏥" darkMode={darkMode}>
-        <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px' }}>
-          <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>💇 Hair Transplant Plan</p>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', marginBottom: '10px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Saved:</span><strong style={{ color: '#14b8a6', fontSize: '16px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${healthFunds.hairTransplant.current.toLocaleString()}`} / {hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${healthFunds.hairTransplant.goal.toLocaleString()}`}</strong></div>
-          <div style={{ width: '100%', height: '8px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '4px', marginTop: '10px', overflow: 'hidden' }}><div style={{ width: `${(healthFunds.hairTransplant.current / healthFunds.hairTransplant.goal) * 100}%`, height: '100%', background: '#14b8a6', borderRadius: '4px' }}></div></div>
           <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-            <input type="number" placeholder="Amount" id="health-amount" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
-            <button onClick={() => handleAddHealthFund(parseFloat(document.getElementById('health-amount').value))} style={{ padding: '12px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>Add</button>
+            <input type="number" placeholder="Amount to invest" id="invest-amount" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
+            <button onClick={() => { const amt = parseFloat(document.getElementById('invest-amount').value); if(validateAmount(amt) && amt <= cashAvailable) { if(!shouldHoldSavings) { setTrustFund(trustFund + amt); setSavings(savings + amt); setCashAvailable(cashAvailable - amt); alert('✅ Invested!'); } else { alert('⏸️ Investments ON HOLD - Focus on paying debts first!'); } } else { alert('❌ Invalid amount'); } }} style={{ padding: '12px 28px', background: shouldHoldSavings ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: shouldHoldSavings ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '14px', opacity: shouldHoldSavings ? 0.7 : 1, transition: 'background 0.2s ease' }} onMouseEnter={(e) => { if (!shouldHoldSavings) e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { if (!shouldHoldSavings) e.currentTarget.style.background = '#14b8a6'; }}>Invest</button>
           </div>
-        </div>
-      </CollapsibleSection>
+        </CollapsibleSection>
 
-      {/* Home Expenses */}
-      <CollapsibleSection title="Home expenses" icon="🏠" darkMode={darkMode}>
-        <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
-          {['food', 'gas', 'electricity'].map((type) => (
-            <div key={type} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <span style={{ width: '100px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', textTransform: 'capitalize', fontSize: '14px' }}>{type}</span>
-              <input type="number" placeholder="Amount" id={`home-${type}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
-              <button onClick={() => handleAddHomeExpense(type, parseFloat(document.getElementById(`home-${type}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>Add</button>
+        {/* Family Support */}
+        <CollapsibleSection title="Family support manager" icon="👨‍👩‍👧" darkMode={darkMode}>
+          {familySupport.parents.amount === 0 && familySupport.daughter.amount === 0 && familySupport.other.amount === 0 ? (
+            <EmptyState 
+              icon="👨‍👩‍👧" 
+              title="No family support set up" 
+              message="Configure monthly support amounts for your family members"
+              darkMode={darkMode}
+            />
+          ) : (
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🇯🇵 Parents (Japan)</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${familySupport.parents.amount.toLocaleString()}`}</p><p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: '600' }}>📅 Scheduled: {familySupport.parents.scheduledDate}</p>{familySupport.parents.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#14b8a6', fontWeight: '600' }}>✓ Last: {familySupport.parents.lastPaid}</p>}</div>
+                  <button onClick={() => handleSendFamilySupport('parents', familySupport.parents.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Send</button>
+                </div>
+              </div>
+              <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🇮🇹 Daughter (Italy)</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${familySupport.daughter.amount.toLocaleString()}`}</p><p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#f59e0b', fontWeight: '600' }}>📅 Scheduled: {familySupport.daughter.scheduledDate}</p>{familySupport.daughter.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#14b8a6', fontWeight: '600' }}>✓ Last: {familySupport.daughter.lastPaid}</p>}</div>
+                  <button onClick={() => handleSendFamilySupport('daughter', familySupport.daughter.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Send</button>
+                </div>
+              </div>
+              <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>🎁 Other Expenses</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>Monthly: {hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${familySupport.other.amount.toLocaleString()}`}</p></div>
+                  <button onClick={() => handleSendFamilySupport('other', familySupport.other.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Send</button>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-        <div style={{ marginTop: '14px', padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month Total: <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${(homeExpenses.food + homeExpenses.gas + homeExpenses.electricity).toLocaleString()}`}</strong></p></div>
-      </CollapsibleSection>
+          )}
+        </CollapsibleSection>
 
-      {/* Car Expenses */}
-      <CollapsibleSection title="Car expenses" icon="🚗" darkMode={darkMode}>
-        <div style={{ marginTop: '16px' }}>
-          <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '14px' }}>
-            <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>⛽ Daily Oil</p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Per Day:</span><strong style={{ color: '#f59e0b', fontSize: '15px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${carExpenses.dailyOil.toLocaleString()}`} (Max: {hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${carExpenses.maxDailyOil.toLocaleString()}`})</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month:</span><strong style={{ color: '#ef4444', fontSize: '15px' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${carExpenses.totalThisMonth.toLocaleString()}`}</strong></div>
+        {/* Health Funds */}
+        <CollapsibleSection title="Health funds" icon="🏥" darkMode={darkMode}>
+          <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px' }}>
+            <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>💇 Hair Transplant Plan</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', marginBottom: '10px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Saved:</span><strong style={{ color: '#14b8a6', fontSize: '16px' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${healthFunds.hairTransplant.current.toLocaleString()}`} / {hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${healthFunds.hairTransplant.goal.toLocaleString()}`}</strong></div>
+            <div style={{ width: '100%', height: '8px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '4px', marginTop: '10px', overflow: 'hidden' }}><div style={{ width: `${(healthFunds.hairTransplant.current / healthFunds.hairTransplant.goal) * 100}%`, height: '100%', background: '#14b8a6', borderRadius: '4px', transition: 'width 0.5s ease' }}></div></div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+              <input type="number" placeholder="Amount" id="health-amount" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
+              <button onClick={() => handleAddHealthFund(parseFloat(document.getElementById('health-amount').value))} style={{ padding: '12px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Add</button>
+            </div>
           </div>
-          <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>Add Today's Oil ({hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${carExpenses.dailyOil.toLocaleString()}`})</button>
-        </div>
-      </CollapsibleSection>
+        </CollapsibleSection>
 
-      {/* Pensions & Insurance */}
-      <CollapsibleSection title="Pensions & Insurance" icon="🛡️" darkMode={darkMode}>
-        <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
-          {[{ key: 'nationalPension', label: '🏛️ National Pension' }, { key: 'healthInsurance', label: '🏥 Health Insurance' }, { key: 'carInsurance', label: '🚗 Car Insurance' }, { key: 'lifeInsurance', label: '💼 Life Insurance' }, { key: 'taxes', label: '📋 Taxes' }].map((item) => (
-            <div key={item.key} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <span style={{ width: '140px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', fontSize: '13px' }}>{item.label}</span>
-              <input type="number" placeholder="Amount" id={`pension-${item.key}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
-              <button onClick={() => handleAddPensionInsurance(item.key, parseFloat(document.getElementById(`pension-${item.key}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>Add</button>
+        {/* Home Expenses */}
+        <CollapsibleSection title="Home expenses" icon="🏠" darkMode={darkMode}>
+          {homeExpenses.food === 0 && homeExpenses.gas === 0 && homeExpenses.electricity === 0 ? (
+            <EmptyState 
+              icon="🏠" 
+              title="No home expenses tracked" 
+              message="Add your monthly home expenses to track spending"
+              darkMode={darkMode}
+            />
+          ) : (
+            <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
+              {['food', 'gas', 'electricity'].map((type) => (
+                <div key={type} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <span style={{ width: '100px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', textTransform: 'capitalize', fontSize: '14px' }}>{type}</span>
+                  <input type="number" placeholder="Amount" id={`home-${type}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
+                  <button onClick={() => handleAddHomeExpense(type, parseFloat(document.getElementById(`home-${type}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Add</button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total This Month: <strong style={{ fontSize: '18px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? CURRENCY + '••••' : `${CURRENCY}${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
-      </CollapsibleSection>
+          )}
+          <div style={{ marginTop: '14px', padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month Total: <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${(homeExpenses.food + homeExpenses.gas + homeExpenses.electricity).toLocaleString()}`}</strong></p></div>
+        </CollapsibleSection>
 
-      {/* Monthly Summary */}
-      <CollapsibleSection title="Monthly summary" icon="📈" darkMode={darkMode} defaultOpen={true}>
-        <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-          <div style={{ padding: '14px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '4px' }}>M Income</p><EditableNumber value={monthlyIncome} onChange={setMonthlyIncome} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
-          <div style={{ padding: '14px', background: darkMode ? '#dc2626' : '#fee2e2', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#b91c1c', fontWeight: '600', marginBottom: '4px' }}>M Expenses</p><EditableNumber value={monthlyExpenses} onChange={setMonthlyExpenses} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
-          <div style={{ padding: '14px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '4px' }}>M Savings</p><EditableNumber value={savings} onChange={setSavings} prefix={CURRENCY} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
-        </div>
-      </CollapsibleSection>
+        {/* Car Expenses */}
+        <CollapsibleSection title="Car expenses" icon="🚗" darkMode={darkMode}>
+          <div style={{ marginTop: '16px' }}>
+            <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '14px' }}>
+              <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px' }}>⛽ Daily Oil</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Per Day:</span><strong style={{ color: '#f59e0b', fontSize: '15px' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()}`} (Max: {hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${CONFIG.maxDailyOil.toLocaleString()}`})</strong></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>This Month:</span><strong style={{ color: '#ef4444', fontSize: '15px' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.totalThisMonth.toLocaleString()}`}</strong></div>
+            </div>
+            <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Add Today's Oil ({hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()}`})</button>
+          </div>
+        </CollapsibleSection>
 
-      {/* Footer */}
-      <footer style={{ textAlign: 'center', padding: '20px', color: darkMode ? '#64748b' : '#94a3b8', fontSize: '13px', marginTop: '24px', borderTop: `2px solid ${darkMode ? '#1e293b' : '#e2e8f0'}` }}><p style={{ margin: 0, fontWeight: '500' }}>© 2026 {appName} • Smart Debt-Focused Finance</p></footer>
-    </div>
+        {/* Pensions & Insurance */}
+        <CollapsibleSection title="Pensions & Insurance" icon="🛡️" darkMode={darkMode}>
+          {pensionsInsurance.total === 0 ? (
+            <EmptyState 
+              icon="🛡️" 
+              title="No pension/insurance tracked" 
+              message="Add your monthly pension and insurance payments"
+              darkMode={darkMode}
+            />
+          ) : (
+            <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
+              {[{ key: 'nationalPension', label: '🏛️ National Pension' }, { key: 'healthInsurance', label: '🏥 Health Insurance' }, { key: 'carInsurance', label: '🚗 Car Insurance' }, { key: 'lifeInsurance', label: '💼 Life Insurance' }, { key: 'taxes', label: '📋 Taxes' }].map((item) => (
+                <div key={item.key} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <span style={{ width: '140px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', fontSize: '13px' }}>{item.label}</span>
+                  <input type="number" placeholder="Amount" id={`pension-${item.key}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }} />
+                  <button onClick={() => handleAddPensionInsurance(item.key, parseFloat(document.getElementById(`pension-${item.key}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Add</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total This Month: <strong style={{ fontSize: '18px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
+        </CollapsibleSection>
+
+        {/* Monthly Summary */}
+        <CollapsibleSection title="Monthly summary" icon="📈" darkMode={darkMode} defaultOpen={true}>
+          <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+            <div style={{ padding: '14px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600', marginBottom: '4px' }}>M Income</p><EditableNumber value={monthlyIncome} onChange={setMonthlyIncome} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
+            <div style={{ padding: '14px', background: darkMode ? '#dc2626' : '#fee2e2', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#b91c1c', fontWeight: '600', marginBottom: '4px' }}>M Expenses</p><EditableNumber value={monthlyExpenses} onChange={setMonthlyExpenses} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
+            <div style={{ padding: '14px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '10px', textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600', marginBottom: '4px' }}>M Savings</p><EditableNumber value={savings} onChange={setSavings} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" /></div>
+          </div>
+        </CollapsibleSection>
+
+        {/* Footer with Privacy Notice */}
+        <footer style={{ textAlign: 'center', padding: '20px', color: darkMode ? '#64748b' : '#94a3b8', fontSize: '12px', marginTop: '24px', borderTop: `2px solid ${darkMode ? '#1e293b' : '#e2e8f0'}` }}>
+          <p style={{ margin: '0 0 4px 0', fontWeight: '500' }}>© 2026 {appName} • Smart Debt-Focused Finance</p>
+          <p style={{ margin: '4px 0 0 0', opacity: 0.8 }}>🔐 All data stored locally. No external tracking. Built for personal use.</p>
+        </footer>
+      </div>
+    </ErrorBoundary>
   );
 }
 
