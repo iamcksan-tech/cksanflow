@@ -53,12 +53,8 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
       marginBottom: '16px',
       overflow: 'hidden',
       boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)',
-      border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`,
-      transition: 'box-shadow 0.2s ease'
-    }}
-    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = darkMode ? '0 8px 30px rgba(0,0,0,0.4)' : '0 8px 30px rgba(0,0,0,0.1)'; }}
-    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)'; }}
-    >
+      border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`
+    }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
@@ -72,17 +68,14 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
           cursor: 'pointer',
           color: darkMode ? '#f8fafc' : '#0f172a',
           fontWeight: '600',
-          fontSize: '16px',
-          transition: 'background 0.2s ease'
+          fontSize: '16px'
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '22px' }}>{icon}</span>
           <span>{title}</span>
         </div>
-        <span style={{ fontSize: '20px', color: '#14b8a6', fontWeight: '300', transition: 'transform 0.2s ease', transform: isOpen ? 'rotate(0)' : 'rotate(-90deg)' }}>{isOpen ? '−' : '+'}</span>
+        <span style={{ fontSize: '20px', color: '#14b8a6', fontWeight: '300', transform: isOpen ? 'rotate(0)' : 'rotate(-90deg)' }}>{isOpen ? '−' : '+'}</span>
       </button>
       {isOpen && <div style={{ padding: '0 20px 20px 20px', borderTop: `1px solid ${darkMode ? '#334155' : '#f1f5f9'}` }}>{children}</div>}
     </div>
@@ -92,18 +85,13 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
 // Line Chart Component
 function LineChart({ data, darkMode }) {
   if (!data || data.length === 0) return null;
-  
   const maxValue = Math.max(...data.map(d => Math.max(d.debt, d.income, d.savings)));
   const height = 200;
   const width = 100;
   const padding = 10;
-  
   const getX = (index) => padding + (index / (data.length - 1)) * (width - 2 * padding);
   const getY = (value) => height - padding - (value / maxValue) * (height - 2 * padding);
-  
-  const createPath = (key) => {
-    return data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(d[key])}`).join(' ');
-  };
+  const createPath = (key) => data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(d[key])}`).join(' ');
 
   return (
     <div style={{ marginTop: '20px', padding: '20px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '12px' }}>
@@ -115,13 +103,6 @@ function LineChart({ data, darkMode }) {
         <path d={createPath('debt')} fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         <path d={createPath('income')} fill="none" stroke="#14b8a6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         <path d={createPath('savings')} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        {data.map((d, i) => (
-          <g key={i}>
-            <circle cx={getX(i)} cy={getY(d.debt)} r="1.5" fill="#ef4444" />
-            <circle cx={getX(i)} cy={getY(d.income)} r="1.5" fill="#14b8a6" />
-            <circle cx={getX(i)} cy={getY(d.savings)} r="1.5" fill="#3b82f6" />
-          </g>
-        ))}
       </svg>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '12px', fontSize: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '3px', background: '#ef4444', borderRadius: '2px' }}></div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Debts</span></div>
@@ -132,7 +113,7 @@ function LineChart({ data, darkMode }) {
   );
 }
 
-// Horizontal Progress Bar Component
+// Horizontal Progress Bar
 function HorizontalProgressBar({ label, current, target, color, darkMode }) {
   const percentage = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
   return (
@@ -142,64 +123,37 @@ function HorizontalProgressBar({ label, current, target, color, darkMode }) {
         <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{CONFIG.currency}{current.toLocaleString()} / {CONFIG.currency}{target.toLocaleString()} ({percentage}%)</span>
       </div>
       <div style={{ width: '100%', height: '10px', background: darkMode ? '#334155' : '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
-        <div style={{ width: `${percentage}%`, height: '100%', background: color, borderRadius: '6px', transition: 'width 0.5s ease' }}></div>
+        <div style={{ width: `${percentage}%`, height: '100%', background: color, borderRadius: '6px' }}></div>
       </div>
     </div>
   );
 }
 
-// Editable Number Component
+// Editable Number
 function EditableNumber({ value, onChange, prefix = CONFIG.currency, darkMode, hideNumbers, fontSize = '16px' }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value.toString());
-
   const handleSave = () => {
     const num = parseFloat(editValue.replace(/,/g, ''));
     if (!isNaN(num)) onChange(num);
     setIsEditing(false);
   };
-
   if (isEditing) {
     return (
-      <input
-        type="number"
-        value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-        autoFocus
-        style={{
-          background: darkMode ? '#0f172a' : 'white',
-          border: '2px solid #14b8a6',
-          borderRadius: '8px',
-          padding: '6px 10px',
-          color: darkMode ? '#f8fafc' : '#0f172a',
-          fontSize: fontSize,
-          fontWeight: '700',
-          width: '120px',
-          outline: 'none'
-        }}
-      />
+      <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={(e) => e.key === 'Enter' && handleSave()} autoFocus style={{ background: darkMode ? '#0f172a' : 'white', border: '2px solid #14b8a6', borderRadius: '8px', padding: '6px 10px', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: fontSize, fontWeight: '700', width: '120px', outline: 'none' }} />
     );
   }
-
-  return (
-    <span onClick={() => setIsEditing(true)} style={{ cursor: 'pointer', fontSize: fontSize, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', transition: 'opacity 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
-      {hideNumbers ? '••••' : `${prefix}${value.toLocaleString()}`}
-    </span>
-  );
+  return <span onClick={() => setIsEditing(true)} style={{ cursor: 'pointer', fontSize: fontSize, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{hideNumbers ? '••••' : `${prefix}${value.toLocaleString()}`}</span>;
 }
 
-// Empty State Component
+// Empty State
 function EmptyState({ icon, title, message, onAction, actionText, darkMode }) {
   return (
     <div style={{ padding: '30px 20px', textAlign: 'center', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', border: `2px dashed ${darkMode ? '#334155' : '#e2e8f0'}` }}>
       <div style={{ fontSize: '40px', marginBottom: '12px' }}>{icon}</div>
       <h4 style={{ margin: '0 0 8px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '600' }}>{title}</h4>
       <p style={{ margin: '0 0 16px 0', color: darkMode ? '#94a3b8' : '#647480', fontSize: '14px' }}>{message}</p>
-      {onAction && (
-        <button onClick={onAction} style={{ padding: '10px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px', transition: 'transform 0.1s ease, background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.02)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>{actionText}</button>
-      )}
+      {onAction && <button onClick={onAction} style={{ padding: '10px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>{actionText}</button>}
     </div>
   );
 }
@@ -207,26 +161,15 @@ function EmptyState({ icon, title, message, onAction, actionText, darkMode }) {
 // Main App Component
 function App() {
   // Month Management
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    const saved = localStorage.getItem('ckSanFlow_currentMonth');
-    return saved || new Date().toISOString().slice(0, 7);
-  });
-
-  // Last Updated Timestamp
+  const [currentMonth, setCurrentMonth] = useState(() => localStorage.getItem('ckSanFlow_currentMonth') || new Date().toISOString().slice(0, 7));
   const [lastUpdated, setLastUpdated] = useState(() => loadData('lastUpdated', formatJST()));
 
   // Main State
   const [cashAvailable, setCashAvailable] = useState(() => loadData(`cash_${currentMonth}`, 0));
   const [savings, setSavings] = useState(() => loadData(`savings_${currentMonth}`, 0));
   const [creditCards, setCreditCards] = useState(() => loadData(`creditCards_${currentMonth}`, []));
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('ckSanFlow_darkMode');
-    return saved ? JSON.parse(saved) : false;
-  });
-  const [hideNumbers, setHideNumbers] = useState(() => {
-    const saved = localStorage.getItem('ckSanFlow_hideNumbers');
-    return saved ? JSON.parse(saved) : false;
-  });
+  const [darkMode, setDarkMode] = useState(() => { const s = localStorage.getItem('ckSanFlow_darkMode'); return s ? JSON.parse(s) : false; });
+  const [hideNumbers, setHideNumbers] = useState(() => { const s = localStorage.getItem('ckSanFlow_hideNumbers'); return s ? JSON.parse(s) : false; });
 
   // Monthly Income Goal
   const [monthlyIncomeGoal, setMonthlyIncomeGoal] = useState(() => loadData(`monthlyIncomeGoal_${currentMonth}`, 300000));
@@ -238,16 +181,18 @@ function App() {
   // Card Expenses
   const [cardExpenses, setCardExpenses] = useState(() => loadData(`cardExpenses_${currentMonth}`, []));
   const [newExpense, setNewExpense] = useState({ cardId: '', amount: '', category: 'Shopping', description: '' });
+  const [editingExpense, setEditingExpense] = useState(null);
+
+  // Credit Cards
   const [newCard, setNewCard] = useState({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
   const [showAddCard, setShowAddCard] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
-  const [editingExpense, setEditingExpense] = useState(null);
 
-  // Monthly Goals
+  // Monthly Goals - ✅ FIXED STATE
   const [monthlyGoals, setMonthlyGoals] = useState(() => loadData(`monthlyGoals_${currentMonth}`, []));
-  const [newGoal, setNewGoal] = useState({ name: '', target: '', color: '#14b8a6', priority: 'medium' });
-  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [showAddGoal, setShowAddGoal] = useState(false); // ✅ Explicit state
   const [editingGoal, setEditingGoal] = useState(null);
+  const [newGoal, setNewGoal] = useState({ name: '', target: '', color: '#14b8a6', priority: 'medium' });
   const [goalAllocationPercent, setGoalAllocationPercent] = useState(() => loadData('goalAllocationPercent', CONFIG.defaultGoalAllocationPercent));
 
   // Trust Fund
@@ -255,21 +200,15 @@ function App() {
   const [trustFund, setTrustFund] = useState(() => loadData(`trustFund_${currentMonth}`, 50000));
   const [spusShares, setSpusShares] = useState(() => loadData(`spusShares_${currentMonth}`, 0));
 
-  // Auto-Hold Settings
+  // Auto-Hold
   const [autoHoldEnabled, setAutoHoldEnabled] = useState(() => loadData('autoHoldEnabled', true));
   const [debtThresholdPercent, setDebtThresholdPercent] = useState(() => loadData('debtThresholdPercent', CONFIG.debtHoldThreshold));
 
   // Family Support
-  const [familySupport, setFamilySupport] = useState(() => loadData(`familySupport_${currentMonth}`, {
-    parents: { amount: 75000, scheduledDate: '19th', lastPaid: '' },
-    daughter: { amount: 25000, scheduledDate: 'anytime', lastPaid: '' },
-    other: { amount: 0, scheduledDate: 'anytime', lastPaid: '' }
-  }));
+  const [familySupport, setFamilySupport] = useState(() => loadData(`familySupport_${currentMonth}`, { parents: { amount: 75000, scheduledDate: '19th', lastPaid: '' }, daughter: { amount: 25000, scheduledDate: 'anytime', lastPaid: '' }, other: { amount: 0, scheduledDate: 'anytime', lastPaid: '' } }));
 
   // Health Funds
-  const [healthFunds, setHealthFunds] = useState(() => loadData(`healthFunds_${currentMonth}`, {
-    hairTransplant: { goal: 500000, current: 0 }
-  }));
+  const [healthFunds, setHealthFunds] = useState(() => loadData(`healthFunds_${currentMonth}`, { hairTransplant: { goal: 500000, current: 0 } }));
 
   // Home Expenses
   const [homeExpenses, setHomeExpenses] = useState(() => loadData(`homeExpenses_${currentMonth}`, { food: 0, gas: 0, electricity: 0 }));
@@ -278,9 +217,7 @@ function App() {
   const [carExpenses, setCarExpenses] = useState(() => loadData(`carExpenses_${currentMonth}`, { dailyOil: CONFIG.maxDailyOil, maxDailyOil: CONFIG.maxDailyOil, totalThisMonth: 0 }));
 
   // Pensions & Insurance
-  const [pensionsInsurance, setPensionsInsurance] = useState(() => loadData(`pensionsInsurance_${currentMonth}`, {
-    nationalPension: 0, healthInsurance: 0, carInsurance: 0, lifeInsurance: 0, taxes: 0, total: 0
-  }));
+  const [pensionsInsurance, setPensionsInsurance] = useState(() => loadData(`pensionsInsurance_${currentMonth}`, { nationalPension: 0, healthInsurance: 0, carInsurance: 0, lifeInsurance: 0, taxes: 0, total: 0 }));
 
   // Monthly Summary
   const [monthlyIncome, setMonthlyIncome] = useState(() => loadData(`monthlyIncome_${currentMonth}`, 0));
@@ -288,10 +225,7 @@ function App() {
 
   // Settings
   const [showSettings, setShowSettings] = useState(false);
-  const [showCustomize, setShowCustomize] = useState(false);
   const [appName, setAppName] = useState(() => loadData('appName', 'CkSanFlow'));
-  
-  // Filters & Search
   const [expenseFilter, setExpenseFilter] = useState('This Month');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -301,32 +235,15 @@ function App() {
   const totalCreditAvailable = creditCards.reduce((sum, card) => sum + card.available, 0);
   const totalGoalsProgress = monthlyGoals.reduce((sum, goal) => sum + goal.current, 0);
   const totalGoalsTarget = monthlyGoals.reduce((sum, goal) => sum + goal.target, 0);
-  const thisMonthIncomes = dailyIncomes;
-  const totalDaysEarned = thisMonthIncomes.length;
-  const totalIncomeThisMonth = thisMonthIncomes.reduce((sum, inc) => sum + inc.amount, 0);
-  const dailyAverageIncome = totalDaysEarned > 0 ? Math.round(totalIncomeThisMonth / totalDaysEarned) : 0;
   const debtPercentage = totalCreditLimit > 0 ? (totalDebts / totalCreditLimit) * 100 : 100;
   const shouldHoldSavings = autoHoldEnabled && debtPercentage > debtThresholdPercent;
   const recommendedSavings = Math.round(monthlyIncome * (CONFIG.defaultSavingsPercent / 100));
-  const spendingByCategory = {};
-  cardExpenses.forEach(expense => { spendingByCategory[expense.category] = (spendingByCategory[expense.category] || 0) + expense.amount; });
 
   // Chart Data
-  const chartData = [
-    { month: 'Jan', debt: 450000, income: 280000, savings: 45000 },
-    { month: 'Feb', debt: 380000, income: 295000, savings: 52000 },
-    { month: 'Mar', debt: 320000, income: 310000, savings: 58000 },
-    { month: 'Apr', debt: 280000, income: 290000, savings: 62000 },
-    { month: 'May', debt: totalDebts, income: monthlyIncome, savings: savings }
-  ];
+  const chartData = [{ month: 'Jan', debt: 450000, income: 280000, savings: 45000 }, { month: 'Feb', debt: 380000, income: 295000, savings: 52000 }, { month: 'Mar', debt: 320000, income: 310000, savings: 58000 }, { month: 'Apr', debt: 280000, income: 290000, savings: 62000 }, { month: 'May', debt: totalDebts, income: monthlyIncome, savings: savings }];
 
-  // Save data with timestamp
-  const saveWithTimestamp = (key, value) => {
-    saveData(key, value);
-    const now = formatJST();
-    setLastUpdated(now);
-    saveData('lastUpdated', now);
-  };
+  // Save with timestamp
+  const saveWithTimestamp = (key, value) => { saveData(key, value); const now = formatJST(); setLastUpdated(now); saveData('lastUpdated', now); };
 
   // Save all data
   useEffect(() => {
@@ -353,16 +270,9 @@ function App() {
   }, [cashAvailable, savings, creditCards, dailyIncomes, cardExpenses, monthlyGoals, monthlyIncomeGoal, trustFund, spusShares, autoHoldEnabled, debtThresholdPercent, familySupport, healthFunds, homeExpenses, carExpenses, pensionsInsurance, monthlyIncome, monthlyExpenses, appName, hideNumbers, currentMonth]);
 
   // Dark mode
-  useEffect(() => {
-    const saved = localStorage.getItem('ckSanFlow_darkMode');
-    if (saved) {
-      const isDark = JSON.parse(saved);
-      setDarkMode(isDark);
-      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    }
-  }, []);
+  useEffect(() => { const s = localStorage.getItem('ckSanFlow_darkMode'); if (s) { const isDark = JSON.parse(s); setDarkMode(isDark); document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } }, []);
 
-  // Month change handler
+  // Month change
   const handleMonthChange = (newMonth) => {
     setCurrentMonth(newMonth);
     localStorage.setItem('ckSanFlow_currentMonth', newMonth);
@@ -384,36 +294,32 @@ function App() {
     setMonthlyExpenses(loadData(`monthlyExpenses_${newMonth}`, 0));
   };
 
-  const calculateClosingDate = (paymentDate) => {
-    const date = parseInt(paymentDate);
-    let closing = date - 15;
-    if (closing <= 0) closing += 30;
-    return closing.toString() + 'th';
-  };
+  const calculateClosingDate = (paymentDate) => { const date = parseInt(paymentDate); let closing = date - 15; if (closing <= 0) closing += 30; return closing.toString() + 'th'; };
 
-  // ✅ FIXED: Add Income now correctly adds to Cash Balance
+  // ✅ FIXED: Daily Income ONLY adds to Cash Balance and Monthly Income
   const handleAddIncome = () => {
     const amount = parseFloat(todayIncome);
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
+    
+    // Add to daily incomes list
     const newIncome = { id: Date.now(), amount, date: new Date().toISOString().split('T')[0] };
     setDailyIncomes([newIncome, ...dailyIncomes]);
-    setCashAvailable(cashAvailable + amount); // ✅ Increases Cash Balance
-    setMonthlyIncome(monthlyIncome + amount);
+    
+    // ✅ ONLY increases Cash Balance (NOT expenses)
+    setCashAvailable(prev => prev + amount);
+    
+    // ✅ Increases Monthly Income (for goal tracking)
+    setMonthlyIncome(prev => prev + amount);
+    
+    // Auto-invest if not on hold
     if (!shouldHoldSavings) {
       const investAmount = Math.round(amount * (investmentPercent / 100));
-      setTrustFund(trustFund + investAmount);
-      setSavings(savings + investAmount);
+      setTrustFund(prev => prev + investAmount);
+      setSavings(prev => prev + investAmount);
     }
-    const goalAmount = Math.round(amount * (goalAllocationPercent / 100));
-    if (goalAmount > 0 && monthlyGoals.length > 0) {
-      const incompleteGoals = monthlyGoals.filter(g => g.current < g.target);
-      if (incompleteGoals.length > 0) {
-        const perGoal = Math.round(goalAmount / incompleteGoals.length);
-        setMonthlyGoals(monthlyGoals.map(goal => incompleteGoals.find(g => g.id === goal.id) ? { ...goal, current: Math.min(goal.target, goal.current + perGoal) } : goal));
-      }
-    }
+    
     setTodayIncome('');
-    alert(`${CONFIG.currency}${amount.toLocaleString()} added to Cash Balance!`);
+    alert(`✅ ${CONFIG.currency}${amount.toLocaleString()} added to Cash Balance!\nMonthly Income: ${CONFIG.currency}${(monthlyIncome + amount).toLocaleString()}`);
   };
 
   const handleAddCard = () => {
@@ -441,143 +347,80 @@ function App() {
   const handleEditCard = (card) => { setEditingCard(card); setNewCard({ name: card.name, limit: card.limit.toString(), available: card.available.toString(), balance: card.balance.toString(), paymentDate: card.paymentDate, thisCyclePayment: card.thisCyclePayment.toString(), nextCyclePayment: card.nextCyclePayment.toString() }); setShowAddCard(true); };
   const handleDeleteCard = (cardId) => { if (confirm('Delete this card?')) { setCreditCards(creditCards.filter(card => card.id !== cardId)); alert('🗑️ Card deleted'); } };
 
-  // ✅ FIXED: Added Edit/Delete for expenses, Added CASH option
   const handleAddCardExpense = () => {
     const { cardId, amount, category, description } = newExpense;
     const expenseAmount = parseFloat(amount);
     if (!validateAmount(expenseAmount)) { alert('Please enter a valid amount'); return; }
-    
-    // ✅ If editing existing expense
     if (editingExpense) {
       const oldAmount = editingExpense.amount;
       const wasCash = editingExpense.cardId === 'cash';
       const isCash = cardId === 'cash';
-      
-      // Reverse old expense
-      if (wasCash) {
-        setCashAvailable(cashAvailable + oldAmount);
-      } else {
-        const card = creditCards.find(c => c.id === parseInt(editingExpense.cardId));
-        if (card) {
-          setCreditCards(creditCards.map(c => {
-            if (c.id === parseInt(editingExpense.cardId)) {
-              const newBalance = c.balance - oldAmount;
-              const newAvailable = c.limit - newBalance;
-              return { ...c, balance: Math.max(0, newBalance), available: newAvailable };
-            }
-            return c;
-          }));
-        }
+      if (wasCash) setCashAvailable(prev => prev + oldAmount);
+      else {
+        setCreditCards(creditCards.map(c => {
+          if (c.id === parseInt(editingExpense.cardId)) { const newBalance = c.balance - oldAmount; return { ...c, balance: Math.max(0, newBalance), available: c.limit - newBalance }; }
+          return c;
+        }));
       }
-      
-      // Add new expense
-      if (isCash) {
-        setCashAvailable(cashAvailable - expenseAmount);
-      } else {
-        const card = creditCards.find(c => c.id === parseInt(cardId));
-        if (card) {
-          setCreditCards(creditCards.map(c => {
-            if (c.id === parseInt(cardId)) {
-              const newBalance = c.balance + expenseAmount;
-              const newAvailable = c.limit - newBalance;
-              return { ...c, balance: newBalance, available: newAvailable };
-            }
-            return c;
-          }));
-        }
+      if (isCash) setCashAvailable(prev => prev - expenseAmount);
+      else {
+        setCreditCards(creditCards.map(c => {
+          if (c.id === parseInt(cardId)) { const newBalance = c.balance + expenseAmount; return { ...c, balance: newBalance, available: c.limit - newBalance }; }
+          return c;
+        }));
       }
-      
       setCardExpenses(cardExpenses.map(exp => exp.id === editingExpense.id ? { ...exp, cardId, amount: expenseAmount, category: autoCategorize(description) || category, description } : exp));
       setEditingExpense(null);
       alert('✅ Expense updated!');
-    } 
-    // ✅ If new expense
-    else {
+    } else {
       if (!cardId) { alert('Please select Cash or a card'); return; }
-      
-      // ✅ CASH payment - reduces Cash Balance
       if (cardId === 'cash') {
         if (expenseAmount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
-        setCashAvailable(cashAvailable - expenseAmount);
-      } 
-      // ✅ Credit card payment
-      else {
+        setCashAvailable(prev => prev - expenseAmount);
+      } else {
         const card = creditCards.find(c => c.id === parseInt(cardId));
         if (!card) return;
         if (expenseAmount > card.available) { alert('❌ Expense exceeds available credit!'); return; }
         setCreditCards(creditCards.map(c => {
-          if (c.id === parseInt(cardId)) {
-            const newBalance = c.balance + expenseAmount;
-            const newAvailable = c.limit - newBalance;
-            return { ...c, balance: newBalance, available: newAvailable };
-          }
+          if (c.id === parseInt(cardId)) { const newBalance = c.balance + expenseAmount; return { ...c, balance: newBalance, available: c.limit - newBalance }; }
           return c;
         }));
       }
-      
       const today = new Date().toISOString().split('T')[0];
       setCardExpenses([{ id: Date.now(), cardId, amount: expenseAmount, category: autoCategorize(description) || category, description, date: today }, ...cardExpenses]);
-      setMonthlyExpenses(monthlyExpenses + expenseAmount);
+      setMonthlyExpenses(prev => prev + expenseAmount);
       alert(`${CONFIG.currency}${expenseAmount.toLocaleString()} recorded!`);
     }
-    
     setNewExpense({ cardId: '', amount: '', category: 'Shopping', description: '' });
   };
 
-  // ✅ FIXED: Delete expense and refund money
   const handleDeleteExpense = (expenseId) => {
     const expense = cardExpenses.find(e => e.id === expenseId);
     if (!expense) return;
     if (!confirm(`Delete this expense? ${CONFIG.currency}${expense.amount.toLocaleString()} will be refunded.`)) return;
-    
-    // Refund money
-    if (expense.cardId === 'cash') {
-      setCashAvailable(cashAvailable + expense.amount);
-    } else {
-      const card = creditCards.find(c => c.id === parseInt(expense.cardId));
-      if (card) {
-        setCreditCards(creditCards.map(c => {
-          if (c.id === parseInt(expense.cardId)) {
-            const newBalance = c.balance - expense.amount;
-            const newAvailable = c.limit - newBalance;
-            return { ...c, balance: Math.max(0, newBalance), available: newAvailable };
-          }
-          return c;
-        }));
-      }
+    if (expense.cardId === 'cash') setCashAvailable(prev => prev + expense.amount);
+    else {
+      setCreditCards(creditCards.map(c => {
+        if (c.id === parseInt(expense.cardId)) { const newBalance = c.balance - expense.amount; return { ...c, balance: Math.max(0, newBalance), available: c.limit - newBalance }; }
+        return c;
+      }));
     }
-    
     setCardExpenses(cardExpenses.filter(e => e.id !== expenseId));
-    setMonthlyExpenses(monthlyExpenses - expense.amount);
+    setMonthlyExpenses(prev => prev - expense.amount);
     alert('🗑️ Expense deleted!');
   };
 
-  // ✅ FIXED: Edit expense
-  const handleEditExpense = (expense) => {
-    setEditingExpense(expense);
-    setNewExpense({
-      cardId: expense.cardId,
-      amount: expense.amount.toString(),
-      category: expense.category,
-      description: expense.description || ''
-    });
-    // Scroll to expense form
-    document.querySelector('input[placeholder*="Description"]')?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const handleEditExpense = (expense) => { setEditingExpense(expense); setNewExpense({ cardId: expense.cardId, amount: expense.amount.toString(), category: expense.category, description: expense.description || '' }); };
 
   const handlePayCard = (cardId, amount) => {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setCreditCards(creditCards.map(card => {
-      if (card.id === cardId) {
-        const newBalance = card.balance - amount;
-        const newAvailable = card.limit - Math.max(0, newBalance);
-        return { ...card, balance: Math.max(0, newBalance), available: newAvailable, thisCyclePayment: Math.max(0, card.thisCyclePayment - amount) };
-      }
+      if (card.id === cardId) { const newBalance = card.balance - amount; const newAvailable = card.limit - Math.max(0, newBalance); return { ...card, balance: Math.max(0, newBalance), available: newAvailable, thisCyclePayment: Math.max(0, card.thisCyclePayment - amount) }; }
       return card;
     }));
-    setCashAvailable(cashAvailable - amount);
-    setMonthlyExpenses(monthlyExpenses + amount);
+    setCashAvailable(prev => prev - amount);
+    setMonthlyExpenses(prev => prev + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} paid!`);
   };
 
@@ -585,8 +428,8 @@ function App() {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setFamilySupport({ ...familySupport, [type]: { ...familySupport[type], lastPaid: new Date().toISOString().split('T')[0] } });
-    setCashAvailable(cashAvailable - amount);
-    setMonthlyExpenses(monthlyExpenses + amount);
+    setCashAvailable(prev => prev - amount);
+    setMonthlyExpenses(prev => prev + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} sent!`);
   };
 
@@ -594,8 +437,8 @@ function App() {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setHealthFunds({ ...healthFunds, hairTransplant: { ...healthFunds.hairTransplant, current: healthFunds.hairTransplant.current + amount } });
-    setCashAvailable(cashAvailable - amount);
-    if (!shouldHoldSavings) setSavings(savings + amount);
+    setCashAvailable(prev => prev - amount);
+    if (!shouldHoldSavings) setSavings(prev => prev + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} added!`);
   };
 
@@ -603,17 +446,16 @@ function App() {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setHomeExpenses({ ...homeExpenses, [type]: homeExpenses[type] + amount });
-    setCashAvailable(cashAvailable - amount);
-    setMonthlyExpenses(monthlyExpenses + amount);
+    setCashAvailable(prev => prev - amount);
+    setMonthlyExpenses(prev => prev + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} recorded!`);
   };
 
-  // ✅ FIXED: Daily Oil now reduces Cash Balance
   const handleAddCarExpense = () => {
     if (carExpenses.dailyOil > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setCarExpenses({ ...carExpenses, totalThisMonth: carExpenses.totalThisMonth + carExpenses.dailyOil });
-    setCashAvailable(cashAvailable - carExpenses.dailyOil); // ✅ Reduces Cash Balance
-    setMonthlyExpenses(monthlyExpenses + carExpenses.dailyOil);
+    setCashAvailable(prev => prev - carExpenses.dailyOil);
+    setMonthlyExpenses(prev => prev + carExpenses.dailyOil);
     alert(`${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()} recorded from Cash Balance!`);
   };
 
@@ -621,15 +463,17 @@ function App() {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setPensionsInsurance({ ...pensionsInsurance, [type]: pensionsInsurance[type] + amount, total: pensionsInsurance.total + amount });
-    setCashAvailable(cashAvailable - amount);
-    setMonthlyExpenses(monthlyExpenses + amount);
+    setCashAvailable(prev => prev - amount);
+    setMonthlyExpenses(prev => prev + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} recorded!`);
   };
 
+  // ✅ FIXED: Add Goal now works properly
   const handleAddGoal = () => {
-    if (!newGoal.name || !newGoal.target) { alert('Please fill in goal name and target'); return; }
+    if (!newGoal.name || !newGoal.target) { alert('Please fill in goal name and target amount'); return; }
     const target = parseFloat(newGoal.target);
-    if (!validateAmount(target)) { alert('Please enter a valid target'); return; }
+    if (!validateAmount(target)) { alert('Please enter a valid target amount'); return; }
+    
     if (editingGoal) {
       setMonthlyGoals(monthlyGoals.map(goal => goal.id === editingGoal.id ? { ...goal, name: newGoal.name, target, color: newGoal.color, priority: newGoal.priority } : goal));
       setEditingGoal(null);
@@ -644,12 +488,13 @@ function App() {
 
   const handleEditGoal = (goal) => { setEditingGoal(goal); setNewGoal({ name: goal.name, target: goal.target.toString(), color: goal.color, priority: goal.priority }); setShowAddGoal(true); };
   const handleDeleteGoal = (goalId) => { if (confirm('Delete this goal?')) { setMonthlyGoals(monthlyGoals.filter(g => g.id !== goalId)); alert('🗑️ Goal deleted'); } };
+  
   const handleContributeToGoal = (goalId, amount) => {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setMonthlyGoals(monthlyGoals.map(goal => goal.id === goalId ? { ...goal, current: Math.min(goal.target, goal.current + amount) } : goal));
-    setCashAvailable(cashAvailable - amount);
-    if (!shouldHoldSavings) setSavings(savings + amount);
+    setCashAvailable(prev => prev - amount);
+    if (!shouldHoldSavings) setSavings(prev => prev + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} added to goal!`);
   };
 
@@ -677,24 +522,13 @@ function App() {
         Object.keys(data).forEach(key => { if (key.startsWith('ckSanFlow_')) { localStorage.setItem(key, data[key]); } });
         alert('✅ Data imported! Reloading...');
         window.location.reload();
-      } catch (err) { alert('❌ Import failed'); console.error(err); }
+      } catch (err) { alert('❌ Import failed'); }
     };
     reader.readAsText(file);
   };
   
-  const toggleDarkMode = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    document.documentElement.setAttribute('data-theme', newMode ? 'dark' : 'light');
-    localStorage.setItem('ckSanFlow_darkMode', newMode);
-  };
-  
-  const toggleHideNumbers = () => {
-    const newHide = !hideNumbers;
-    setHideNumbers(newHide);
-    localStorage.setItem('ckSanFlow_hideNumbers', newHide);
-  };
-  
+  const toggleDarkMode = () => { const newMode = !darkMode; setDarkMode(newMode); document.documentElement.setAttribute('data-theme', newMode ? 'dark' : 'light'); localStorage.setItem('ckSanFlow_darkMode', newMode); };
+  const toggleHideNumbers = () => { const newHide = !hideNumbers; setHideNumbers(newHide); localStorage.setItem('ckSanFlow_hideNumbers', newHide); };
   const getCategoryIcon = (category) => ({ 'Shopping': '🛒', 'Food': '🍽️', 'Gas': '⛽', 'Transport': '🚗', 'Entertainment': '🎬', 'Health': '💊', 'Other': '📦' }[category] || '📦');
 
   const generateMonthOptions = () => {
@@ -709,7 +543,6 @@ function App() {
     return months;
   };
 
-  // Filter expenses
   const filteredExpenses = cardExpenses.filter(expense => {
     const matchesSearch = !searchQuery || expense.description?.toLowerCase().includes(searchQuery.toLowerCase()) || expense.category.toLowerCase().includes(searchQuery.toLowerCase()) || expense.amount.toString().includes(searchQuery);
     if (expenseFilter === 'This Week') { const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7); return matchesSearch && new Date(expense.date) >= weekAgo; }
@@ -719,7 +552,7 @@ function App() {
 
   return (
     <div className="App" style={{ minHeight: '100vh', background: darkMode ? '#0f172a' : '#f8fafc', padding: '20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Header with Timestamp */}
+      {/* Header */}
       <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: darkMode ? '#f8fafc' : '#0f172a' }}>💰 {appName}</h1>
@@ -730,75 +563,71 @@ function App() {
           <select value={currentMonth} onChange={(e) => handleMonthChange(e.target.value)} style={{ padding: '10px 14px', background: darkMode ? '#1e293b' : 'white', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, borderRadius: '10px', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }}>
             {generateMonthOptions().map(m => (<option key={m.value} value={m.value}>{m.label}</option>))}
           </select>
-          <button onClick={toggleHideNumbers} style={{ padding: '10px 14px', background: hideNumbers ? '#8b5cf6' : (darkMode ? '#1e293b' : 'white'), border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', color: hideNumbers ? 'white' : (darkMode ? '#f8fafc' : '#0f172a'), transition: 'transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>👁️</button>
-          <button onClick={toggleDarkMode} style={{ padding: '10px 14px', background: darkMode ? '#fbbf24' : '#1e293b', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', color: darkMode ? '#0f172a' : 'white', transition: 'transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>{darkMode ? '☀️' : '🌙'}</button>
-          <button onClick={() => setShowSettings(!showSettings)} style={{ padding: '10px 14px', background: darkMode ? '#1e293b' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', transition: 'transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>📊</button>
+          <button onClick={toggleHideNumbers} style={{ padding: '10px 14px', background: hideNumbers ? '#8b5cf6' : (darkMode ? '#1e293b' : 'white'), border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', color: hideNumbers ? 'white' : (darkMode ? '#f8fafc' : '#0f172a') }}>👁️</button>
+          <button onClick={toggleDarkMode} style={{ padding: '10px 14px', background: darkMode ? '#fbbf24' : '#1e293b', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', color: darkMode ? '#0f172a' : 'white' }}>{darkMode ? '☀️' : '🌙'}</button>
+          <button onClick={() => setShowSettings(!showSettings)} style={{ padding: '10px 14px', background: darkMode ? '#1e293b' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px' }}>📊</button>
         </div>
       </header>
 
-      {/* Auto-Hold Alert */}
       {shouldHoldSavings && (
-        <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)', padding: '16px 20px', borderRadius: '12px', marginBottom: '20px', boxShadow: '0 4px 12px rgba(245,158,11,0.3)' }}>
+        <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)', padding: '16px 20px', borderRadius: '12px', marginBottom: '20px' }}>
           <p style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'white' }}>⏸️ Savings ON HOLD</p>
           <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.95)' }}>Debts at {debtPercentage.toFixed(1)}% - Focus on paying down to {debtThresholdPercent}%</p>
         </div>
       )}
 
-      {/* Line Chart */}
       <LineChart data={chartData} darkMode={darkMode} />
 
       {/* Dashboard Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(16,185,129,0.25)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+        <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center' }}>
           <div style={{ fontSize: '28px', marginBottom: '8px' }}>💵</div>
           <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>CASH BALANCE</p>
           <EditableNumber value={cashAvailable} onChange={setCashAvailable} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
         </div>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' : 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(239,68,68,0.25)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+        <div style={{ background: darkMode ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' : 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center' }}>
           <div style={{ fontSize: '28px', marginBottom: '8px' }}>⚠️</div>
           <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>DEBTS</p>
           <p style={{ margin: '6px 0 0 0', fontSize: '24px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${totalDebts.toLocaleString()}`}</p>
           <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: 'rgba(255,255,255,0.9)' }}>{debtPercentage.toFixed(1)}% of limit</p>
         </div>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)' : 'linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(139,92,246,0.25)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+        <div style={{ background: darkMode ? 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)' : 'linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center' }}>
           <div style={{ fontSize: '28px', marginBottom: '8px' }}>📊</div>
           <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>INCOME GOAL</p>
           <EditableNumber value={monthlyIncomeGoal} onChange={setMonthlyIncomeGoal} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" />
           <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{hideNumbers ? '••••' : `${Math.round((monthlyIncome / monthlyIncomeGoal) * 100)}%`} achieved</p>
         </div>
-        <div style={{ background: shouldHoldSavings ? 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(59,130,246,0.25)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+        <div style={{ background: shouldHoldSavings ? 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center' }}>
           <div style={{ fontSize: '28px', marginBottom: '8px' }}>{shouldHoldSavings ? '⏸️' : '💰'}</div>
           <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>SAVINGS</p>
           <EditableNumber value={savings} onChange={setSavings} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="20px" />
         </div>
       </div>
 
-      {/* Horizontal Progress Bars */}
-      <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+      <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px' }}>
         <h3 style={{ margin: '0 0 20px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '700' }}>📊 Financial Overview</h3>
         <HorizontalProgressBar label="Debt Reduction" current={totalCreditLimit - totalDebts} target={totalCreditLimit} color="#ef4444" darkMode={darkMode} />
         <HorizontalProgressBar label="Monthly Income Goal" current={monthlyIncome} target={monthlyIncomeGoal} color="#14b8a6" darkMode={darkMode} />
         <HorizontalProgressBar label="Savings Progress" current={savings} target={recommendedSavings} color={shouldHoldSavings ? '#f59e0b' : '#3b82f6'} darkMode={darkMode} />
       </div>
 
-      {/* Settings Panel */}
       {showSettings && (
-        <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px' }}>
           <h3 style={{ margin: '0 0 16px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '700' }}>Settings</h3>
           <div style={{ display: 'grid', gap: '10px' }}>
-            <button onClick={toggleDarkMode} style={{ padding: '14px', background: darkMode ? '#fbbf24' : '#0f172a', color: darkMode ? '#0f172a' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = darkMode ? '#fcd34d' : '#0f172a'; }} onMouseLeave={(e) => { e.currentTarget.style.background = darkMode ? '#fbbf24' : '#0f172a'; }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</button>
-            <button onClick={toggleHideNumbers} style={{ padding: '14px', background: hideNumbers ? '#8b5cf6' : '#0f172a', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = hideNumbers ? '#7c3aed' : '#0f172a'; }} onMouseLeave={(e) => { e.currentTarget.style.background = hideNumbers ? '#8b5cf6' : '#0f172a'; }}>{hideNumbers ? '👁️ Show Numbers' : '🙈 Hide Numbers'}</button>
-            <button onClick={handleExport} style={{ padding: '14px', background: '#667eea', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#556cd6'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#667eea'; }}>📦 Export Backup</button>
-            <label style={{ display: 'block', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', textAlign: 'center', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>
+            <button onClick={toggleDarkMode} style={{ padding: '14px', background: darkMode ? '#fbbf24' : '#0f172a', color: darkMode ? '#0f172a' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</button>
+            <button onClick={toggleHideNumbers} style={{ padding: '14px', background: hideNumbers ? '#8b5cf6' : '#0f172a', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{hideNumbers ? '👁️ Show Numbers' : '🙈 Hide Numbers'}</button>
+            <button onClick={handleExport} style={{ padding: '14px', background: '#667eea', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>📦 Export Backup</button>
+            <label style={{ display: 'block', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', textAlign: 'center' }}>
               📥 Import Backup
               <input type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
             </label>
-            <button onClick={handleReset} style={{ padding: '14px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#ef4444'; }}>🗑️ Reset All Data</button>
+            <button onClick={handleReset} style={{ padding: '14px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>🗑️ Reset All Data</button>
           </div>
         </div>
       )}
 
-      {/* Daily Income */}
+      {/* Daily Income - ✅ FIXED: Only adds to Cash Balance */}
       <CollapsibleSection title="Daily income" icon="📊" darkMode={darkMode} defaultOpen={true}>
         {dailyIncomes.length === 0 ? (
           <EmptyState icon="📈" title="No income recorded" message="Start tracking your daily income" onAction={() => document.querySelector('input[placeholder*="Amount"]')?.focus()} actionText="➕ Add Income" darkMode={darkMode} />
@@ -806,13 +635,13 @@ function App() {
           <>
             <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
               <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder={`Amount (${CONFIG.currency})`} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
-              <button onClick={handleAddIncome} style={{ padding: '14px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'background 0.2s ease, transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.02)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>Add to Cash Balance</button>
+              <button onClick={handleAddIncome} style={{ padding: '14px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>Add to Cash</button>
             </div>
             <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '10px' }}>💡 {investmentPercent}% auto-invested {shouldHoldSavings ? '(ON HOLD)' : ''}</p>
             <div style={{ marginTop: '16px' }}>
               <p style={{ fontSize: '14px', fontWeight: '700', marginBottom: '10px', color: darkMode ? '#f8fafc' : '#0f172a' }}>Recent:</p>
               {dailyIncomes.slice(0, 5).map((income, index) => (
-                <div key={income.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = darkMode ? '#334155' : '#f1f5f9'; }} onMouseLeave={(e) => { e.currentTarget.style.background = darkMode ? '#1e293b' : '#f8fafc'; }}>
+                <div key={income.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{income.date}</span>
                     {index === 0 && <span style={{ marginLeft: '8px', fontSize: '10px', background: '#f59e0b', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>LATEST</span>}
@@ -831,12 +660,11 @@ function App() {
           <EmptyState icon="💳" title="No credit cards" message="Add your first credit card" onAction={() => { setShowAddCard(true); setEditingCard(null); }} actionText="➕ Add Card" darkMode={darkMode} />
         ) : (
           <>
-            <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px', transition: 'background 0.2s ease, transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.01)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>➕ Add New Card</button>
+            <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px' }}>➕ Add New Card</button>
             
             <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px' }}>
               <p style={{ margin: '0 0 12px 0', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>➕ {editingExpense ? '✏️ Edit' : 'Add'} Expense</p>
               <div style={{ display: 'grid', gap: '10px' }}>
-                {/* ✅ FIXED: Added CASH option in dropdown */}
                 <select value={newExpense.cardId} onChange={(e) => setNewExpense({...newExpense, cardId: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
                   <option value="">Select Payment Method</option>
                   <option value="cash">💵 Cash (from Cash Balance)</option>
@@ -845,10 +673,8 @@ function App() {
                 <input type="text" placeholder="Description" value={newExpense.description} onChange={(e) => { setNewExpense({...newExpense, description: e.target.value}); if (e.target.value) setNewExpense(prev => ({...prev, category: autoCategorize(e.target.value)})); }} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
                 <input type="number" placeholder={`Amount (${CONFIG.currency})`} value={newExpense.amount} onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={handleAddCardExpense} style={{ flex: 1, padding: '12px', background: editingExpense ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = editingExpense ? '#d97706' : '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = editingExpense ? '#f59e0b' : '#14b8a6'; }}>{editingExpense ? '💾 Update' : 'Add'}</button>
-                  {editingExpense && (
-                    <button onClick={() => { setEditingExpense(null); setNewExpense({ cardId: '', amount: '', category: 'Shopping', description: '' }); }} style={{ padding: '12px 20px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>✕ Cancel</button>
-                  )}
+                  <button onClick={handleAddCardExpense} style={{ flex: 1, padding: '12px', background: editingExpense ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{editingExpense ? '💾 Update' : 'Add'}</button>
+                  {editingExpense && <button onClick={() => { setEditingExpense(null); setNewExpense({ cardId: '', amount: '', category: 'Shopping', description: '' }); }} style={{ padding: '12px 20px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>✕ Cancel</button>}
                 </div>
               </div>
             </div>
@@ -857,7 +683,7 @@ function App() {
               <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', display: 'grid', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <h4 style={{ margin: 0, color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '700' }}>{editingCard ? '✏️ Edit' : '➕ New Card'}</h4>
-                  <button onClick={() => { setShowAddCard(false); setEditingCard(null); }} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#ef4444'; }}>✕ Cancel</button>
+                  <button onClick={() => { setShowAddCard(false); setEditingCard(null); }} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✕ Cancel</button>
                 </div>
                 <input type="text" placeholder="Card Name" value={newCard.name} onChange={(e) => setNewCard({...newCard, name: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
                 <input type="number" placeholder={`Limit Quota (${CONFIG.currency})`} value={newCard.limit} onChange={(e) => setNewCard({...newCard, limit: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
@@ -869,21 +695,20 @@ function App() {
                   <option value="27th">27th (Close: 12th)</option>
                 </select>
                 <input type="number" placeholder={`Payment (${CONFIG.currency})`} value={newCard.thisCyclePayment} onChange={(e) => setNewCard({...newCard, thisCyclePayment: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-                <button onClick={handleAddCard} style={{ padding: '14px', background: editingCard ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = editingCard ? '#d97706' : '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = editingCard ? '#f59e0b' : '#14b8a6'; }}>{editingCard ? '💾 Update' : '➕ Add Card'}</button>
+                <button onClick={handleAddCard} style={{ padding: '14px', background: editingCard ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{editingCard ? '💾 Update' : '➕ Add Card'}</button>
               </div>
             )}
 
             <div style={{ marginTop: '16px' }}>
               {creditCards.map((card) => {
                 const suggestedPayment = Math.min(card.balance, cashAvailable, card.thisCyclePayment);
-                const paymentPercentage = card.thisCyclePayment > 0 ? Math.round((suggestedPayment / card.thisCyclePayment) * 100) : 0;
                 return (
-                  <div key={card.id} style={{ background: darkMode ? '#1e293b' : '#f8fafc', padding: '18px', borderRadius: '12px', marginBottom: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, transition: 'box-shadow 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.boxShadow = darkMode ? '0 4px 16px rgba(0,0,0,0.3)' : '0 4px 16px rgba(0,0,0,0.08)'; }} onMouseLeave={(e) => { e.currentTarget.style.boxShadow = darkMode ? '0 2px 8px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.04)'; }}>
+                  <div key={card.id} style={{ background: darkMode ? '#1e293b' : '#f8fafc', padding: '18px', borderRadius: '12px', marginBottom: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.name}</h4>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => handleEditCard(card)} style={{ padding: '6px 12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#d97706'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#f59e0b'; }}>✏️</button>
-                        <button onClick={() => handleDeleteCard(card.id)} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#ef4444'; }}>🗑️</button>
+                        <button onClick={() => handleEditCard(card)} style={{ padding: '6px 12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✏️</button>
+                        <button onClick={() => handleDeleteCard(card.id)} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>🗑️</button>
                       </div>
                     </div>
                     <div style={{ padding: '12px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '10px', marginBottom: '12px', fontSize: '13px' }}>
@@ -891,106 +716,78 @@ function App() {
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>💰 Payment:</span><strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.paymentDate}</strong></div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px', marginBottom: '12px' }}>
-                      {/* ✅ FIXED: Renamed labels */}
                       <div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Limit Quota:</span> <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.limit.toLocaleString()}`}</strong></div>
                       <div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Remaining Balance:</span> <strong style={{ color: '#14b8a6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.available.toLocaleString()}`}</strong></div>
                       <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Debt to Pay:</span> <strong style={{ color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.balance.toLocaleString()}`}</strong></div>
                     </div>
                     {card.balance > 0 && cashAvailable > 0 && (
-                      <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '14px', borderRadius: '10px', marginBottom: '12px', boxShadow: '0 2px 8px rgba(16,185,129,0.2)' }}>
+                      <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '14px', borderRadius: '10px', marginBottom: '12px' }}>
                         <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: '600', color: 'white' }}>💡 Smart Payment</p>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                           <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>Pay:</span>
                           <span style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${suggestedPayment.toLocaleString()}`}</span>
                         </div>
-                        <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{paymentPercentage}% of debt</p>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <input type="number" placeholder="Amount" id={`pay-${card.id}`} defaultValue={suggestedPayment} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '2px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: '14px' }} />
-                          <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-${card.id}`).value) || suggestedPayment)} style={{ padding: '10px 20px', background: 'white', color: '#059669', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', transition: 'transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>Pay</button>
+                          <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-${card.id}`).value) || suggestedPayment)} style={{ padding: '10px 20px', background: 'white', color: '#059669', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700' }}>Pay</button>
                         </div>
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: '10px' }}>
                       <input type="number" placeholder="Amount" id={`pay-manual-${card.id}`} defaultValue={card.thisCyclePayment} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-                      <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-manual-${card.id}`).value) || card.thisCyclePayment)} style={{ padding: '12px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease, transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.02)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>Pay</button>
+                      <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-manual-${card.id}`).value) || card.thisCyclePayment)} style={{ padding: '12px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Pay</button>
                     </div>
                   </div>
                 );
               })}
             </div>
-            <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '12px', transition: 'background 0.2s ease, transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.01)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>➕ Add Another Card</button>
             
-            {filteredExpenses.length > 0 ? (
+            {filteredExpenses.length > 0 && (
               <div style={{ marginTop: '20px' }}>
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                  <input type="text" placeholder="🔍 Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ flex: 1, minWidth: '150px', padding: '10px 14px', borderRadius: '8px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '13px' }} />
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {['This Week', 'This Month', 'All'].map(filter => (
-                      <button key={filter} onClick={() => setExpenseFilter(filter)} style={{ padding: '8px 14px', background: expenseFilter === filter ? '#14b8a6' : (darkMode ? '#334155' : '#e2e8f0'), color: expenseFilter === filter ? 'white' : (darkMode ? '#f8fafc' : '#0f172a'), border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: expenseFilter === filter ? '600' : '400', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { if (expenseFilter !== filter) e.currentTarget.style.background = darkMode ? '#475569' : '#cbd5e1'; }} onMouseLeave={(e) => { if (expenseFilter !== filter) e.currentTarget.style.background = darkMode ? '#334155' : '#e2e8f0'; }}>{filter}</button>
-                    ))}
-                  </div>
-                </div>
                 <p style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', color: darkMode ? '#f8fafc' : '#0f172a' }}>📜 Expenses:</p>
                 {filteredExpenses.slice(0, 10).map((expense) => (
-                  <div key={expense.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = darkMode ? '#334155' : '#f1f5f9'; }} onMouseLeave={(e) => { e.currentTarget.style.background = darkMode ? '#1e293b' : '#f8fafc'; }}>
+                  <div key={expense.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>{getCategoryIcon(expense.category)} {expense.category}</p>
-                      <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#647480' }}>
-                        {expense.cardId === 'cash' ? '💵 Cash' : creditCards.find(c => c.id === parseInt(expense.cardId))?.name} • {expense.date}
-                        {expense.description && ` • ${expense.description}`}
-                      </p>
+                      <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#647480' }}>{expense.cardId === 'cash' ? '💵 Cash' : creditCards.find(c => c.id === parseInt(expense.cardId))?.name} • {expense.date}</p>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <p style={{ margin: 0, fontWeight: '700', color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${expense.amount.toLocaleString()}`}</p>
-                      {/* ✅ FIXED: Added Edit/Delete buttons for each expense */}
                       <button onClick={() => handleEditExpense(expense)} style={{ padding: '4px 8px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>✏️</button>
                       <button onClick={() => handleDeleteExpense(expense.id)} style={{ padding: '4px 8px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>🗑️</button>
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <EmptyState icon="📋" title="No expenses" message={searchQuery ? "Try different search" : "Add your first expense"} onAction={() => document.querySelector('input[placeholder*="Description"]')?.focus()} actionText="➕ Add Expense" darkMode={darkMode} />
             )}
           </>
         )}
       </CollapsibleSection>
 
-      {/* Trust Funds */}
-      <CollapsibleSection title="Trust funds & investment" icon="🏦" darkMode={darkMode}>
-        <div style={{ marginTop: '16px' }}>
-          <label style={{ fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Auto-invest %:</label>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-            <input type="number" value={investmentPercent} onChange={(e) => setInvestmentPercent(parseFloat(e.target.value) || 0)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <span style={{ padding: '12px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '700' }}>%</span>
-          </div>
-          <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '8px' }}>💡 Recommended: 10-20% {shouldHoldSavings && '(ON HOLD)'}</p>
-        </div>
-        <div style={{ marginTop: '20px', padding: '16px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '12px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600' }}>Trust Fund</p>
-          <EditableNumber value={trustFund} onChange={setTrustFund} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="28px" />
-        </div>
-        <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#0891b2' : '#cffafe', borderRadius: '12px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#0e7490', fontWeight: '600' }}>SPUS Shares</p>
-          <EditableNumber value={spusShares} onChange={setSpusShares} prefix="" darkMode={darkMode} hideNumbers={hideNumbers} fontSize="22px" />
-        </div>
-        <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-          <input type="number" placeholder="Amount" id="invest-amount" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-          <button onClick={() => { const amt = parseFloat(document.getElementById('invest-amount').value); if(validateAmount(amt) && amt <= cashAvailable) { if(!shouldHoldSavings) { setTrustFund(trustFund + amt); setSavings(savings + amt); setCashAvailable(cashAvailable - amt); alert('✅ Invested!'); } else { alert('⏸️ ON HOLD - Pay debts first!'); } } else { alert('❌ Invalid'); } }} style={{ padding: '12px 28px', background: shouldHoldSavings ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: shouldHoldSavings ? 'not-allowed' : 'pointer', fontWeight: '700', opacity: shouldHoldSavings ? 0.7 : 1, transition: 'background 0.2s ease' }} onMouseEnter={(e) => { if (!shouldHoldSavings) e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { if (!shouldHoldSavings) e.currentTarget.style.background = '#14b8a6'; }}>Invest</button>
-        </div>
-      </CollapsibleSection>
-
-      {/* Monthly Goals */}
+      {/* Monthly Goals - ✅ FIXED: Add Goal button now works */}
       <CollapsibleSection title="Monthly goals" icon="🎯" darkMode={darkMode}>
         {monthlyGoals.length === 0 ? (
-          <EmptyState icon="🎯" title="No goals" message="Set your first financial goal" onAction={() => { setShowAddGoal(true); setEditingGoal(null); }} actionText="➕ Add Goal" darkMode={darkMode} />
+          <EmptyState icon="🎯" title="No goals" message="Set your first financial goal" onAction={() => setShowAddGoal(true)} actionText="➕ Add Goal" darkMode={darkMode} />
         ) : (
           <>
-            <button onClick={() => { setShowAddGoal(true); setEditingGoal(null); setNewGoal({ name: '', target: '', color: '#14b8a6', priority: 'medium' }); }} style={{ width: '100%', padding: '16px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#7c3aed'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#8b5cf6'; }}>➕ Add Goal</button>
+            {/* ✅ FIXED: Button with explicit onClick handler */}
+            <button 
+              onClick={() => {
+                console.log('Add Goal clicked');
+                setShowAddGoal(true);
+                setEditingGoal(null);
+                setNewGoal({ name: '', target: '', color: '#14b8a6', priority: 'medium' });
+              }} 
+              style={{ width: '100%', padding: '16px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px' }}
+            >
+              ➕ Add Goal
+            </button>
+            
+            {/* ✅ FIXED: Form shows when showAddGoal is true */}
             {showAddGoal && (
               <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', display: 'grid', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h4 style={{ margin: 0, color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '700' }}>{editingGoal ? '✏️ Edit' : '➕ New Goal'}</h4>
+                  <h4 style={{ margin: 0, color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '700' }}>{editingGoal ? '✏️ Edit Goal' : '➕ New Goal'}</h4>
                   <button onClick={() => { setShowAddGoal(false); setEditingGoal(null); }} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✕ Cancel</button>
                 </div>
                 <input type="text" placeholder="Goal Name" value={newGoal.name} onChange={(e) => setNewGoal({...newGoal, name: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
@@ -1002,9 +799,10 @@ function App() {
                   <option value="#ef4444">🔴 Red</option>
                   <option value="#3b82f6">🔵 Blue</option>
                 </select>
-                <button onClick={handleAddGoal} style={{ padding: '14px', background: editingGoal ? '#f59e0b' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{editingGoal ? '💾 Update' : '➕ Add Goal'}</button>
+                <button onClick={handleAddGoal} style={{ padding: '14px', background: editingGoal ? '#f59e0b' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{editingGoal ? '💾 Update Goal' : '➕ Add Goal'}</button>
               </div>
             )}
+            
             <div style={{ marginTop: '16px' }}>
               {monthlyGoals.map((goal) => {
                 const percentage = Math.min(100, Math.round((goal.current / goal.target) * 100));
@@ -1033,19 +831,35 @@ function App() {
         )}
       </CollapsibleSection>
 
+      {/* Trust Funds */}
+      <CollapsibleSection title="Trust funds & investment" icon="🏦" darkMode={darkMode}>
+        <div style={{ marginTop: '16px' }}>
+          <label style={{ fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Auto-invest %:</label>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+            <input type="number" value={investmentPercent} onChange={(e) => setInvestmentPercent(parseFloat(e.target.value) || 0)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+            <span style={{ padding: '12px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '700' }}>%</span>
+          </div>
+          <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '8px' }}>💡 Recommended: 10-20% {shouldHoldSavings && '(ON HOLD)'}</p>
+        </div>
+        <div style={{ marginTop: '20px', padding: '16px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '12px' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600' }}>Trust Fund</p>
+          <EditableNumber value={trustFund} onChange={setTrustFund} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="28px" />
+        </div>
+      </CollapsibleSection>
+
       {/* Family Support */}
       <CollapsibleSection title="Family support" icon="👨‍👩‍👧" darkMode={darkMode}>
         <div style={{ marginTop: '16px' }}>
           <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>🇯🇵 Parents</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${familySupport.parents.amount.toLocaleString()}`}</p>{familySupport.parents.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#14b8a6' }}>✓ Last: {familySupport.parents.lastPaid}</p>}</div>
-              <button onClick={() => handleSendFamilySupport('parents', familySupport.parents.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Send</button>
+              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>🇯🇵 Parents</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${familySupport.parents.amount.toLocaleString()}`}</p></div>
+              <button onClick={() => handleSendFamilySupport('parents', familySupport.parents.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700' }}>Send</button>
             </div>
           </div>
           <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>🇮🇹 Daughter</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${familySupport.daughter.amount.toLocaleString()}`}</p>{familySupport.daughter.lastPaid && <p style={{ margin: '3px 0 0 0', fontSize: '11px', color: '#14b8a6' }}>✓ Last: {familySupport.daughter.lastPaid}</p>}</div>
-              <button onClick={() => handleSendFamilySupport('daughter', familySupport.daughter.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Send</button>
+              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>🇮🇹 Daughter</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${familySupport.daughter.amount.toLocaleString()}`}</p></div>
+              <button onClick={() => handleSendFamilySupport('daughter', familySupport.daughter.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700' }}>Send</button>
             </div>
           </div>
         </div>
@@ -1060,31 +874,26 @@ function App() {
             <strong style={{ color: '#14b8a6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${healthFunds.hairTransplant.current.toLocaleString()}`} / {hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${healthFunds.hairTransplant.goal.toLocaleString()}`}</strong>
           </div>
           <div style={{ width: '100%', height: '8px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '4px', marginTop: '10px' }}>
-            <div style={{ width: `${(healthFunds.hairTransplant.current / healthFunds.hairTransplant.goal) * 100}%`, height: '100%', background: '#14b8a6', borderRadius: '4px', transition: 'width 0.5s ease' }}></div>
+            <div style={{ width: `${(healthFunds.hairTransplant.current / healthFunds.hairTransplant.goal) * 100}%`, height: '100%', background: '#14b8a6', borderRadius: '4px' }}></div>
           </div>
           <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
             <input type="number" placeholder="Amount" id="health-amount" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <button onClick={() => handleAddHealthFund(parseFloat(document.getElementById('health-amount').value))} style={{ padding: '12px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Add</button>
+            <button onClick={() => handleAddHealthFund(parseFloat(document.getElementById('health-amount').value))} style={{ padding: '12px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add</button>
           </div>
         </div>
       </CollapsibleSection>
 
       {/* Home Expenses */}
       <CollapsibleSection title="Home expenses" icon="🏠" darkMode={darkMode}>
-        {homeExpenses.food === 0 && homeExpenses.gas === 0 && homeExpenses.electricity === 0 ? (
-          <EmptyState icon="🏠" title="No home expenses" message="Track your monthly bills" darkMode={darkMode} />
-        ) : (
-          <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
-            {['food', 'gas', 'electricity'].map((type) => (
-              <div key={type} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <span style={{ width: '100px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', textTransform: 'capitalize', fontSize: '14px' }}>{type}</span>
-                <input type="number" placeholder="Amount" id={`home-${type}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-                <button onClick={() => handleAddHomeExpense(type, parseFloat(document.getElementById(`home-${type}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Add</button>
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{ marginTop: '14px', padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Total: <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${(homeExpenses.food + homeExpenses.gas + homeExpenses.electricity).toLocaleString()}`}</strong></p></div>
+        <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
+          {['food', 'gas', 'electricity'].map((type) => (
+            <div key={type} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <span style={{ width: '100px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', textTransform: 'capitalize', fontSize: '14px' }}>{type}</span>
+              <input type="number" placeholder="Amount" id={`home-${type}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+              <button onClick={() => handleAddHomeExpense(type, parseFloat(document.getElementById(`home-${type}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add</button>
+            </div>
+          ))}
+        </div>
       </CollapsibleSection>
 
       {/* Car Expenses */}
@@ -1092,25 +901,10 @@ function App() {
         <div style={{ marginTop: '16px' }}>
           <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '14px' }}>
             <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>⛽ Daily Oil</p>
-            <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()}`} per day (Max: {CONFIG.currency}{CONFIG.maxDailyOil.toLocaleString()})</p>
-            <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>This month: <strong style={{ color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.totalThisMonth.toLocaleString()}`}</strong></p>
+            <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()}`} per day</p>
           </div>
-          <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Add Today ({CONFIG.currency}{carExpenses.dailyOil.toLocaleString()})</button>
+          <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add Today ({CONFIG.currency}{carExpenses.dailyOil.toLocaleString()})</button>
         </div>
-      </CollapsibleSection>
-
-      {/* Pensions & Insurance */}
-      <CollapsibleSection title="Pensions & Insurance" icon="🛡️" darkMode={darkMode}>
-        <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
-          {[{ key: 'nationalPension', label: '🏛️ National Pension' }, { key: 'healthInsurance', label: '🏥 Health Insurance' }, { key: 'carInsurance', label: '🚗 Car Insurance' }, { key: 'taxes', label: '📋 Taxes' }].map((item) => (
-            <div key={item.key} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <span style={{ width: '140px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', fontSize: '13px' }}>{item.label}</span>
-              <input type="number" placeholder="Amount" id={`pension-${item.key}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-              <button onClick={() => handleAddPensionInsurance(item.key, parseFloat(document.getElementById(`pension-${item.key}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Add</button>
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total: <strong style={{ fontSize: '18px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
       </CollapsibleSection>
 
       {/* Footer */}
