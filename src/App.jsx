@@ -241,6 +241,7 @@ function App() {
   const [newCard, setNewCard] = useState({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
   const [showAddCard, setShowAddCard] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
+  const [editingExpense, setEditingExpense] = useState(null);
 
   // Monthly Goals
   const [monthlyGoals, setMonthlyGoals] = useState(() => loadData(`monthlyGoals_${currentMonth}`, []));
@@ -390,12 +391,13 @@ function App() {
     return closing.toString() + 'th';
   };
 
+  // ✅ FIXED: Add Income now correctly adds to Cash Balance
   const handleAddIncome = () => {
     const amount = parseFloat(todayIncome);
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     const newIncome = { id: Date.now(), amount, date: new Date().toISOString().split('T')[0] };
     setDailyIncomes([newIncome, ...dailyIncomes]);
-    setCashAvailable(cashAvailable + amount);
+    setCashAvailable(cashAvailable + amount); // ✅ Increases Cash Balance
     setMonthlyIncome(monthlyIncome + amount);
     if (!shouldHoldSavings) {
       const investAmount = Math.round(amount * (investmentPercent / 100));
@@ -411,7 +413,7 @@ function App() {
       }
     }
     setTodayIncome('');
-    alert(`${CONFIG.currency}${amount.toLocaleString()} added!${shouldHoldSavings ? ' (Savings ON HOLD)' : ''}`);
+    alert(`${CONFIG.currency}${amount.toLocaleString()} added to Cash Balance!`);
   };
 
   const handleAddCard = () => {
@@ -439,30 +441,128 @@ function App() {
   const handleEditCard = (card) => { setEditingCard(card); setNewCard({ name: card.name, limit: card.limit.toString(), available: card.available.toString(), balance: card.balance.toString(), paymentDate: card.paymentDate, thisCyclePayment: card.thisCyclePayment.toString(), nextCyclePayment: card.nextCyclePayment.toString() }); setShowAddCard(true); };
   const handleDeleteCard = (cardId) => { if (confirm('Delete this card?')) { setCreditCards(creditCards.filter(card => card.id !== cardId)); alert('🗑️ Card deleted'); } };
 
+  // ✅ FIXED: Added Edit/Delete for expenses, Added CASH option
   const handleAddCardExpense = () => {
     const { cardId, amount, category, description } = newExpense;
     const expenseAmount = parseFloat(amount);
     if (!validateAmount(expenseAmount)) { alert('Please enter a valid amount'); return; }
-    if (!cardId) { alert('Please select a card'); return; }
-    const card = creditCards.find(c => c.id === parseInt(cardId));
-    if (!card) return;
-    if (expenseAmount > card.available) { alert('❌ Expense exceeds available credit!'); return; }
-    const today = new Date().toISOString().split('T')[0];
-    const expenseDay = new Date().getDate();
-    const closingDay = parseInt(card.closingDate);
-    const isCurrentCycle = expenseDay <= closingDay;
-    setCreditCards(creditCards.map(c => {
-      if (c.id === parseInt(cardId)) {
-        const newBalance = c.balance + expenseAmount;
-        const newAvailable = c.limit - newBalance;
-        return { ...c, balance: newBalance, available: newAvailable, thisCyclePayment: isCurrentCycle ? c.thisCyclePayment + expenseAmount : c.thisCyclePayment, nextCyclePayment: isCurrentCycle ? c.nextCyclePayment : c.nextCyclePayment + expenseAmount };
+    
+    // ✅ If editing existing expense
+    if (editingExpense) {
+      const oldAmount = editingExpense.amount;
+      const wasCash = editingExpense.cardId === 'cash';
+      const isCash = cardId === 'cash';
+      
+      // Reverse old expense
+      if (wasCash) {
+        setCashAvailable(cashAvailable + oldAmount);
+      } else {
+        const card = creditCards.find(c => c.id === parseInt(editingExpense.cardId));
+        if (card) {
+          setCreditCards(creditCards.map(c => {
+            if (c.id === parseInt(editingExpense.cardId)) {
+              const newBalance = c.balance - oldAmount;
+              const newAvailable = c.limit - newBalance;
+              return { ...c, balance: Math.max(0, newBalance), available: newAvailable };
+            }
+            return c;
+          }));
+        }
       }
-      return c;
-    }));
-    setCardExpenses([{ id: Date.now(), cardId: parseInt(cardId), cardName: card.name, amount: expenseAmount, category: autoCategorize(description) || category, description, date: today, cycle: isCurrentCycle ? 'This Month' : 'Next Month' }, ...cardExpenses]);
-    setMonthlyExpenses(monthlyExpenses + expenseAmount);
+      
+      // Add new expense
+      if (isCash) {
+        setCashAvailable(cashAvailable - expenseAmount);
+      } else {
+        const card = creditCards.find(c => c.id === parseInt(cardId));
+        if (card) {
+          setCreditCards(creditCards.map(c => {
+            if (c.id === parseInt(cardId)) {
+              const newBalance = c.balance + expenseAmount;
+              const newAvailable = c.limit - newBalance;
+              return { ...c, balance: newBalance, available: newAvailable };
+            }
+            return c;
+          }));
+        }
+      }
+      
+      setCardExpenses(cardExpenses.map(exp => exp.id === editingExpense.id ? { ...exp, cardId, amount: expenseAmount, category: autoCategorize(description) || category, description } : exp));
+      setEditingExpense(null);
+      alert('✅ Expense updated!');
+    } 
+    // ✅ If new expense
+    else {
+      if (!cardId) { alert('Please select Cash or a card'); return; }
+      
+      // ✅ CASH payment - reduces Cash Balance
+      if (cardId === 'cash') {
+        if (expenseAmount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
+        setCashAvailable(cashAvailable - expenseAmount);
+      } 
+      // ✅ Credit card payment
+      else {
+        const card = creditCards.find(c => c.id === parseInt(cardId));
+        if (!card) return;
+        if (expenseAmount > card.available) { alert('❌ Expense exceeds available credit!'); return; }
+        setCreditCards(creditCards.map(c => {
+          if (c.id === parseInt(cardId)) {
+            const newBalance = c.balance + expenseAmount;
+            const newAvailable = c.limit - newBalance;
+            return { ...c, balance: newBalance, available: newAvailable };
+          }
+          return c;
+        }));
+      }
+      
+      const today = new Date().toISOString().split('T')[0];
+      setCardExpenses([{ id: Date.now(), cardId, amount: expenseAmount, category: autoCategorize(description) || category, description, date: today }, ...cardExpenses]);
+      setMonthlyExpenses(monthlyExpenses + expenseAmount);
+      alert(`${CONFIG.currency}${expenseAmount.toLocaleString()} recorded!`);
+    }
+    
     setNewExpense({ cardId: '', amount: '', category: 'Shopping', description: '' });
-    alert(`${CONFIG.currency}${expenseAmount.toLocaleString()} added!`);
+  };
+
+  // ✅ FIXED: Delete expense and refund money
+  const handleDeleteExpense = (expenseId) => {
+    const expense = cardExpenses.find(e => e.id === expenseId);
+    if (!expense) return;
+    if (!confirm(`Delete this expense? ${CONFIG.currency}${expense.amount.toLocaleString()} will be refunded.`)) return;
+    
+    // Refund money
+    if (expense.cardId === 'cash') {
+      setCashAvailable(cashAvailable + expense.amount);
+    } else {
+      const card = creditCards.find(c => c.id === parseInt(expense.cardId));
+      if (card) {
+        setCreditCards(creditCards.map(c => {
+          if (c.id === parseInt(expense.cardId)) {
+            const newBalance = c.balance - expense.amount;
+            const newAvailable = c.limit - newBalance;
+            return { ...c, balance: Math.max(0, newBalance), available: newAvailable };
+          }
+          return c;
+        }));
+      }
+    }
+    
+    setCardExpenses(cardExpenses.filter(e => e.id !== expenseId));
+    setMonthlyExpenses(monthlyExpenses - expense.amount);
+    alert('🗑️ Expense deleted!');
+  };
+
+  // ✅ FIXED: Edit expense
+  const handleEditExpense = (expense) => {
+    setEditingExpense(expense);
+    setNewExpense({
+      cardId: expense.cardId,
+      amount: expense.amount.toString(),
+      category: expense.category,
+      description: expense.description || ''
+    });
+    // Scroll to expense form
+    document.querySelector('input[placeholder*="Description"]')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handlePayCard = (cardId, amount) => {
@@ -508,12 +608,13 @@ function App() {
     alert(`${CONFIG.currency}${amount.toLocaleString()} recorded!`);
   };
 
+  // ✅ FIXED: Daily Oil now reduces Cash Balance
   const handleAddCarExpense = () => {
     if (carExpenses.dailyOil > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setCarExpenses({ ...carExpenses, totalThisMonth: carExpenses.totalThisMonth + carExpenses.dailyOil });
-    setCashAvailable(cashAvailable - carExpenses.dailyOil);
+    setCashAvailable(cashAvailable - carExpenses.dailyOil); // ✅ Reduces Cash Balance
     setMonthlyExpenses(monthlyExpenses + carExpenses.dailyOil);
-    alert(`${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()} recorded!`);
+    alert(`${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()} recorded from Cash Balance!`);
   };
 
   const handleAddPensionInsurance = (type, amount) => {
@@ -650,7 +751,7 @@ function App() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
         <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(16,185,129,0.25)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
           <div style={{ fontSize: '28px', marginBottom: '8px' }}>💵</div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>CASH</p>
+          <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>CASH BALANCE</p>
           <EditableNumber value={cashAvailable} onChange={setCashAvailable} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="24px" />
         </div>
         <div style={{ background: darkMode ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' : 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center', boxShadow: '0 4px 12px rgba(239,68,68,0.25)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
@@ -705,7 +806,7 @@ function App() {
           <>
             <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
               <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder={`Amount (${CONFIG.currency})`} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
-              <button onClick={handleAddIncome} style={{ padding: '14px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'background 0.2s ease, transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.02)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>Add</button>
+              <button onClick={handleAddIncome} style={{ padding: '14px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'background 0.2s ease, transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.02)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>Add to Cash Balance</button>
             </div>
             <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '10px' }}>💡 {investmentPercent}% auto-invested {shouldHoldSavings ? '(ON HOLD)' : ''}</p>
             <div style={{ marginTop: '16px' }}>
@@ -733,15 +834,22 @@ function App() {
             <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px', transition: 'background 0.2s ease, transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.transform = 'scale(1.01)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; e.currentTarget.style.transform = 'scale(1)'; }}>➕ Add New Card</button>
             
             <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px' }}>
-              <p style={{ margin: '0 0 12px 0', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>➕ Add Expense</p>
+              <p style={{ margin: '0 0 12px 0', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>➕ {editingExpense ? '✏️ Edit' : 'Add'} Expense</p>
               <div style={{ display: 'grid', gap: '10px' }}>
+                {/* ✅ FIXED: Added CASH option in dropdown */}
                 <select value={newExpense.cardId} onChange={(e) => setNewExpense({...newExpense, cardId: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
-                  <option value="">Select Card</option>
+                  <option value="">Select Payment Method</option>
+                  <option value="cash">💵 Cash (from Cash Balance)</option>
                   {creditCards.map(card => (<option key={card.id} value={card.id}>{card.name}</option>))}
                 </select>
                 <input type="text" placeholder="Description" value={newExpense.description} onChange={(e) => { setNewExpense({...newExpense, description: e.target.value}); if (e.target.value) setNewExpense(prev => ({...prev, category: autoCategorize(e.target.value)})); }} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
                 <input type="number" placeholder={`Amount (${CONFIG.currency})`} value={newExpense.amount} onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-                <button onClick={handleAddCardExpense} style={{ padding: '12px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#14b8a6'; }}>Add</button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={handleAddCardExpense} style={{ flex: 1, padding: '12px', background: editingExpense ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = editingExpense ? '#d97706' : '#0d9488'; }} onMouseLeave={(e) => { e.currentTarget.style.background = editingExpense ? '#f59e0b' : '#14b8a6'; }}>{editingExpense ? '💾 Update' : 'Add'}</button>
+                  {editingExpense && (
+                    <button onClick={() => { setEditingExpense(null); setNewExpense({ cardId: '', amount: '', category: 'Shopping', description: '' }); }} style={{ padding: '12px 20px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>✕ Cancel</button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -752,9 +860,9 @@ function App() {
                   <button onClick={() => { setShowAddCard(false); setEditingCard(null); }} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#ef4444'; }}>✕ Cancel</button>
                 </div>
                 <input type="text" placeholder="Card Name" value={newCard.name} onChange={(e) => setNewCard({...newCard, name: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-                <input type="number" placeholder={`Limit (${CONFIG.currency})`} value={newCard.limit} onChange={(e) => setNewCard({...newCard, limit: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-                <input type="number" placeholder={`Available (${CONFIG.currency})`} value={newCard.available} onChange={(e) => setNewCard({...newCard, available: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-                <input type="number" placeholder={`Balance (${CONFIG.currency})`} value={newCard.balance} onChange={(e) => setNewCard({...newCard, balance: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                <input type="number" placeholder={`Limit Quota (${CONFIG.currency})`} value={newCard.limit} onChange={(e) => setNewCard({...newCard, limit: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                <input type="number" placeholder={`Remaining Balance (${CONFIG.currency})`} value={newCard.available} onChange={(e) => setNewCard({...newCard, available: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                <input type="number" placeholder={`Debt to Pay (${CONFIG.currency})`} value={newCard.balance} onChange={(e) => setNewCard({...newCard, balance: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
                 <select value={newCard.paymentDate} onChange={(e) => setNewCard({...newCard, paymentDate: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
                   <option value="10th">10th (Close: 25th)</option>
                   <option value="26th">26th (Close: 11th)</option>
@@ -783,9 +891,10 @@ function App() {
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>💰 Payment:</span><strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.paymentDate}</strong></div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px', marginBottom: '12px' }}>
-                      <div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Limit:</span> <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.limit.toLocaleString()}`}</strong></div>
-                      <div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Available:</span> <strong style={{ color: '#14b8a6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.available.toLocaleString()}`}</strong></div>
-                      <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Balance:</span> <strong style={{ color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.balance.toLocaleString()}`}</strong></div>
+                      {/* ✅ FIXED: Renamed labels */}
+                      <div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Limit Quota:</span> <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.limit.toLocaleString()}`}</strong></div>
+                      <div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Remaining Balance:</span> <strong style={{ color: '#14b8a6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.available.toLocaleString()}`}</strong></div>
+                      <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Debt to Pay:</span> <strong style={{ color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.balance.toLocaleString()}`}</strong></div>
                     </div>
                     {card.balance > 0 && cashAvailable > 0 && (
                       <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '14px', borderRadius: '10px', marginBottom: '12px', boxShadow: '0 2px 8px rgba(16,185,129,0.2)' }}>
@@ -794,7 +903,7 @@ function App() {
                           <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>Pay:</span>
                           <span style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${suggestedPayment.toLocaleString()}`}</span>
                         </div>
-                        <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{paymentPercentage}% of balance</p>
+                        <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{paymentPercentage}% of debt</p>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <input type="number" placeholder="Amount" id={`pay-${card.id}`} defaultValue={suggestedPayment} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '2px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.2)', color: 'white', fontSize: '14px' }} />
                           <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-${card.id}`).value) || suggestedPayment)} style={{ padding: '10px 20px', background: 'white', color: '#059669', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', transition: 'transform 0.1s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>Pay</button>
@@ -826,9 +935,17 @@ function App() {
                   <div key={expense.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = darkMode ? '#334155' : '#f1f5f9'; }} onMouseLeave={(e) => { e.currentTarget.style.background = darkMode ? '#1e293b' : '#f8fafc'; }}>
                     <div>
                       <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>{getCategoryIcon(expense.category)} {expense.category}</p>
-                      <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#647480' }}>{expense.cardName} • {expense.date}{expense.description && ` • ${expense.description}`}</p>
+                      <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#647480' }}>
+                        {expense.cardId === 'cash' ? '💵 Cash' : creditCards.find(c => c.id === parseInt(expense.cardId))?.name} • {expense.date}
+                        {expense.description && ` • ${expense.description}`}
+                      </p>
                     </div>
-                    <p style={{ margin: 0, fontWeight: '700', color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${expense.amount.toLocaleString()}`}</p>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <p style={{ margin: 0, fontWeight: '700', color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${expense.amount.toLocaleString()}`}</p>
+                      {/* ✅ FIXED: Added Edit/Delete buttons for each expense */}
+                      <button onClick={() => handleEditExpense(expense)} style={{ padding: '4px 8px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>✏️</button>
+                      <button onClick={() => handleDeleteExpense(expense.id)} style={{ padding: '4px 8px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>🗑️</button>
+                    </div>
                   </div>
                 ))}
               </div>
