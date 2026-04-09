@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import { saveData, loadData } from './dataStorage';
 
-// ============ ALL CONFIG INLINE ============
+// ============ CONFIG ============
 const CONFIG = {
   currency: '¥',
   defaultSavingsPercent: 10,
@@ -43,7 +43,7 @@ const validateAmount = (value) => {
 };
 // ============ END CONFIG ============
 
-// Collapsible Section Component
+// Collapsible Section
 function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMode }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
@@ -55,22 +55,7 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
       boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)',
       border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`
     }}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: '100%',
-          padding: '18px 20px',
-          background: 'transparent',
-          border: 'none',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          cursor: 'pointer',
-          color: darkMode ? '#f8fafc' : '#0f172a',
-          fontWeight: '600',
-          fontSize: '16px'
-        }}
-      >
+      <button onClick={() => setIsOpen(!isOpen)} style={{ width: '100%', padding: '18px 20px', background: 'transparent', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', fontSize: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '22px' }}>{icon}</span>
           <span>{title}</span>
@@ -82,24 +67,20 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
   );
 }
 
-// Line Chart Component
+// Line Chart
 function LineChart({ data, darkMode }) {
   if (!data || data.length === 0) return null;
   const maxValue = Math.max(...data.map(d => Math.max(d.debt, d.income, d.savings)));
-  const height = 200;
-  const width = 100;
-  const padding = 10;
-  const getX = (index) => padding + (index / (data.length - 1)) * (width - 2 * padding);
-  const getY = (value) => height - padding - (value / maxValue) * (height - 2 * padding);
+  const height = 200, width = 100, padding = 10;
+  const getX = (i) => padding + (i / (data.length - 1)) * (width - 2 * padding);
+  const getY = (v) => height - padding - (v / maxValue) * (height - 2 * padding);
   const createPath = (key) => data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(d[key])}`).join(' ');
 
   return (
     <div style={{ marginTop: '20px', padding: '20px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '12px' }}>
       <h4 style={{ margin: '0 0 16px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }}>📈 Financial Progress</h4>
       <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '200px' }} preserveAspectRatio="xMidYMid meet">
-        {[0, 0.25, 0.5, 0.75, 1].map((tick, i) => (
-          <line key={i} x1={padding} y1={getY(maxValue * tick)} x2={width - padding} y2={getY(maxValue * tick)} stroke={darkMode ? '#334155' : '#e2e8f0'} strokeWidth="0.5" strokeDasharray="2,2" />
-        ))}
+        {[0, 0.25, 0.5, 0.75, 1].map((_, i) => (<line key={i} x1={padding} y1={getY(maxValue * i)} x2={width - padding} y2={getY(maxValue * i)} stroke={darkMode ? '#334155' : '#e2e8f0'} strokeWidth="0.5" strokeDasharray="2,2" />))}
         <path d={createPath('debt')} fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         <path d={createPath('income')} fill="none" stroke="#14b8a6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         <path d={createPath('savings')} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -133,16 +114,8 @@ function HorizontalProgressBar({ label, current, target, color, darkMode }) {
 function EditableNumber({ value, onChange, prefix = CONFIG.currency, darkMode, hideNumbers, fontSize = '16px' }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value.toString());
-  const handleSave = () => {
-    const num = parseFloat(editValue.replace(/,/g, ''));
-    if (!isNaN(num)) onChange(num);
-    setIsEditing(false);
-  };
-  if (isEditing) {
-    return (
-      <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={(e) => e.key === 'Enter' && handleSave()} autoFocus style={{ background: darkMode ? '#0f172a' : 'white', border: '2px solid #14b8a6', borderRadius: '8px', padding: '6px 10px', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: fontSize, fontWeight: '700', width: '120px', outline: 'none' }} />
-    );
-  }
+  const handleSave = () => { const num = parseFloat(editValue.replace(/,/g, '')); if (!isNaN(num)) onChange(num); setIsEditing(false); };
+  if (isEditing) return <input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} onBlur={handleSave} onKeyDown={(e) => e.key === 'Enter' && handleSave()} autoFocus style={{ background: darkMode ? '#0f172a' : 'white', border: '2px solid #14b8a6', borderRadius: '8px', padding: '6px 10px', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: fontSize, fontWeight: '700', width: '120px', outline: 'none' }} />;
   return <span onClick={() => setIsEditing(true)} style={{ cursor: 'pointer', fontSize: fontSize, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{hideNumbers ? '••••' : `${prefix}${value.toLocaleString()}`}</span>;
 }
 
@@ -158,9 +131,8 @@ function EmptyState({ icon, title, message, onAction, actionText, darkMode }) {
   );
 }
 
-// Main App Component
+// Main App
 function App() {
-  // Month Management
   const [currentMonth, setCurrentMonth] = useState(() => localStorage.getItem('ckSanFlow_currentMonth') || new Date().toISOString().slice(0, 7));
   const [lastUpdated, setLastUpdated] = useState(() => loadData('lastUpdated', formatJST()));
 
@@ -170,11 +142,9 @@ function App() {
   const [creditCards, setCreditCards] = useState(() => loadData(`creditCards_${currentMonth}`, []));
   const [darkMode, setDarkMode] = useState(() => { const s = localStorage.getItem('ckSanFlow_darkMode'); return s ? JSON.parse(s) : false; });
   const [hideNumbers, setHideNumbers] = useState(() => { const s = localStorage.getItem('ckSanFlow_hideNumbers'); return s ? JSON.parse(s) : false; });
-
-  // Monthly Income Goal
   const [monthlyIncomeGoal, setMonthlyIncomeGoal] = useState(() => loadData(`monthlyIncomeGoal_${currentMonth}`, 300000));
 
-  // Daily Income
+  // ✅ Daily Income - SEPARATE STATE (NOT linked to expenses)
   const [dailyIncomes, setDailyIncomes] = useState(() => loadData(`dailyIncomes_${currentMonth}`, []));
   const [todayIncome, setTodayIncome] = useState('');
 
@@ -188,9 +158,9 @@ function App() {
   const [showAddCard, setShowAddCard] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
 
-  // Monthly Goals - ✅ FIXED STATE
+  // Monthly Goals
   const [monthlyGoals, setMonthlyGoals] = useState(() => loadData(`monthlyGoals_${currentMonth}`, []));
-  const [showAddGoal, setShowAddGoal] = useState(false); // ✅ Explicit state
+  const [showAddGoal, setShowAddGoal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
   const [newGoal, setNewGoal] = useState({ name: '', target: '', color: '#14b8a6', priority: 'medium' });
   const [goalAllocationPercent, setGoalAllocationPercent] = useState(() => loadData('goalAllocationPercent', CONFIG.defaultGoalAllocationPercent));
@@ -233,8 +203,6 @@ function App() {
   const totalDebts = creditCards.reduce((sum, card) => sum + card.balance, 0);
   const totalCreditLimit = creditCards.reduce((sum, card) => sum + card.limit, 0);
   const totalCreditAvailable = creditCards.reduce((sum, card) => sum + card.available, 0);
-  const totalGoalsProgress = monthlyGoals.reduce((sum, goal) => sum + goal.current, 0);
-  const totalGoalsTarget = monthlyGoals.reduce((sum, goal) => sum + goal.target, 0);
   const debtPercentage = totalCreditLimit > 0 ? (totalDebts / totalCreditLimit) * 100 : 100;
   const shouldHoldSavings = autoHoldEnabled && debtPercentage > debtThresholdPercent;
   const recommendedSavings = Math.round(monthlyIncome * (CONFIG.defaultSavingsPercent / 100));
@@ -296,7 +264,7 @@ function App() {
 
   const calculateClosingDate = (paymentDate) => { const date = parseInt(paymentDate); let closing = date - 15; if (closing <= 0) closing += 30; return closing.toString() + 'th'; };
 
-  // ✅ FIXED: Daily Income ONLY adds to Cash Balance and Monthly Income
+  // ✅✅✅ FIXED: Daily Income ONLY adds to Cash Balance and Monthly Income
   const handleAddIncome = () => {
     const amount = parseFloat(todayIncome);
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
@@ -305,18 +273,11 @@ function App() {
     const newIncome = { id: Date.now(), amount, date: new Date().toISOString().split('T')[0] };
     setDailyIncomes([newIncome, ...dailyIncomes]);
     
-    // ✅ ONLY increases Cash Balance (NOT expenses)
-    setCashAvailable(prev => prev + amount);
+    // ✅ ONLY increases Cash Balance (NOT expenses, NOT anything else)
+    setCashAvailable(cashAvailable + amount);
     
-    // ✅ Increases Monthly Income (for goal tracking)
-    setMonthlyIncome(prev => prev + amount);
-    
-    // Auto-invest if not on hold
-    if (!shouldHoldSavings) {
-      const investAmount = Math.round(amount * (investmentPercent / 100));
-      setTrustFund(prev => prev + investAmount);
-      setSavings(prev => prev + investAmount);
-    }
+    // ✅ ONLY increases Monthly Income (for goal tracking)
+    setMonthlyIncome(monthlyIncome + amount);
     
     setTodayIncome('');
     alert(`✅ ${CONFIG.currency}${amount.toLocaleString()} added to Cash Balance!\nMonthly Income: ${CONFIG.currency}${(monthlyIncome + amount).toLocaleString()}`);
@@ -355,14 +316,14 @@ function App() {
       const oldAmount = editingExpense.amount;
       const wasCash = editingExpense.cardId === 'cash';
       const isCash = cardId === 'cash';
-      if (wasCash) setCashAvailable(prev => prev + oldAmount);
+      if (wasCash) setCashAvailable(cashAvailable + oldAmount);
       else {
         setCreditCards(creditCards.map(c => {
           if (c.id === parseInt(editingExpense.cardId)) { const newBalance = c.balance - oldAmount; return { ...c, balance: Math.max(0, newBalance), available: c.limit - newBalance }; }
           return c;
         }));
       }
-      if (isCash) setCashAvailable(prev => prev - expenseAmount);
+      if (isCash) setCashAvailable(cashAvailable - expenseAmount);
       else {
         setCreditCards(creditCards.map(c => {
           if (c.id === parseInt(cardId)) { const newBalance = c.balance + expenseAmount; return { ...c, balance: newBalance, available: c.limit - newBalance }; }
@@ -376,7 +337,7 @@ function App() {
       if (!cardId) { alert('Please select Cash or a card'); return; }
       if (cardId === 'cash') {
         if (expenseAmount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
-        setCashAvailable(prev => prev - expenseAmount);
+        setCashAvailable(cashAvailable - expenseAmount);
       } else {
         const card = creditCards.find(c => c.id === parseInt(cardId));
         if (!card) return;
@@ -388,7 +349,7 @@ function App() {
       }
       const today = new Date().toISOString().split('T')[0];
       setCardExpenses([{ id: Date.now(), cardId, amount: expenseAmount, category: autoCategorize(description) || category, description, date: today }, ...cardExpenses]);
-      setMonthlyExpenses(prev => prev + expenseAmount);
+      setMonthlyExpenses(monthlyExpenses + expenseAmount);
       alert(`${CONFIG.currency}${expenseAmount.toLocaleString()} recorded!`);
     }
     setNewExpense({ cardId: '', amount: '', category: 'Shopping', description: '' });
@@ -398,7 +359,7 @@ function App() {
     const expense = cardExpenses.find(e => e.id === expenseId);
     if (!expense) return;
     if (!confirm(`Delete this expense? ${CONFIG.currency}${expense.amount.toLocaleString()} will be refunded.`)) return;
-    if (expense.cardId === 'cash') setCashAvailable(prev => prev + expense.amount);
+    if (expense.cardId === 'cash') setCashAvailable(cashAvailable + expense.amount);
     else {
       setCreditCards(creditCards.map(c => {
         if (c.id === parseInt(expense.cardId)) { const newBalance = c.balance - expense.amount; return { ...c, balance: Math.max(0, newBalance), available: c.limit - newBalance }; }
@@ -406,7 +367,7 @@ function App() {
       }));
     }
     setCardExpenses(cardExpenses.filter(e => e.id !== expenseId));
-    setMonthlyExpenses(prev => prev - expense.amount);
+    setMonthlyExpenses(monthlyExpenses - expense.amount);
     alert('🗑️ Expense deleted!');
   };
 
@@ -419,8 +380,8 @@ function App() {
       if (card.id === cardId) { const newBalance = card.balance - amount; const newAvailable = card.limit - Math.max(0, newBalance); return { ...card, balance: Math.max(0, newBalance), available: newAvailable, thisCyclePayment: Math.max(0, card.thisCyclePayment - amount) }; }
       return card;
     }));
-    setCashAvailable(prev => prev - amount);
-    setMonthlyExpenses(prev => prev + amount);
+    setCashAvailable(cashAvailable - amount);
+    setMonthlyExpenses(monthlyExpenses + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} paid!`);
   };
 
@@ -428,8 +389,8 @@ function App() {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setFamilySupport({ ...familySupport, [type]: { ...familySupport[type], lastPaid: new Date().toISOString().split('T')[0] } });
-    setCashAvailable(prev => prev - amount);
-    setMonthlyExpenses(prev => prev + amount);
+    setCashAvailable(cashAvailable - amount);
+    setMonthlyExpenses(monthlyExpenses + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} sent!`);
   };
 
@@ -437,8 +398,8 @@ function App() {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setHealthFunds({ ...healthFunds, hairTransplant: { ...healthFunds.hairTransplant, current: healthFunds.hairTransplant.current + amount } });
-    setCashAvailable(prev => prev - amount);
-    if (!shouldHoldSavings) setSavings(prev => prev + amount);
+    setCashAvailable(cashAvailable - amount);
+    if (!shouldHoldSavings) setSavings(savings + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} added!`);
   };
 
@@ -446,16 +407,16 @@ function App() {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setHomeExpenses({ ...homeExpenses, [type]: homeExpenses[type] + amount });
-    setCashAvailable(prev => prev - amount);
-    setMonthlyExpenses(prev => prev + amount);
+    setCashAvailable(cashAvailable - amount);
+    setMonthlyExpenses(monthlyExpenses + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} recorded!`);
   };
 
   const handleAddCarExpense = () => {
     if (carExpenses.dailyOil > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setCarExpenses({ ...carExpenses, totalThisMonth: carExpenses.totalThisMonth + carExpenses.dailyOil });
-    setCashAvailable(prev => prev - carExpenses.dailyOil);
-    setMonthlyExpenses(prev => prev + carExpenses.dailyOil);
+    setCashAvailable(cashAvailable - carExpenses.dailyOil);
+    setMonthlyExpenses(monthlyExpenses + carExpenses.dailyOil);
     alert(`${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()} recorded from Cash Balance!`);
   };
 
@@ -463,17 +424,15 @@ function App() {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setPensionsInsurance({ ...pensionsInsurance, [type]: pensionsInsurance[type] + amount, total: pensionsInsurance.total + amount });
-    setCashAvailable(prev => prev - amount);
-    setMonthlyExpenses(prev => prev + amount);
+    setCashAvailable(cashAvailable - amount);
+    setMonthlyExpenses(monthlyExpenses + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} recorded!`);
   };
 
-  // ✅ FIXED: Add Goal now works properly
   const handleAddGoal = () => {
     if (!newGoal.name || !newGoal.target) { alert('Please fill in goal name and target amount'); return; }
     const target = parseFloat(newGoal.target);
     if (!validateAmount(target)) { alert('Please enter a valid target amount'); return; }
-    
     if (editingGoal) {
       setMonthlyGoals(monthlyGoals.map(goal => goal.id === editingGoal.id ? { ...goal, name: newGoal.name, target, color: newGoal.color, priority: newGoal.priority } : goal));
       setEditingGoal(null);
@@ -493,8 +452,8 @@ function App() {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setMonthlyGoals(monthlyGoals.map(goal => goal.id === goalId ? { ...goal, current: Math.min(goal.target, goal.current + amount) } : goal));
-    setCashAvailable(prev => prev - amount);
-    if (!shouldHoldSavings) setSavings(prev => prev + amount);
+    setCashAvailable(cashAvailable - amount);
+    if (!shouldHoldSavings) setSavings(savings + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} added to goal!`);
   };
 
@@ -627,33 +586,6 @@ function App() {
         </div>
       )}
 
-      {/* Daily Income - ✅ FIXED: Only adds to Cash Balance */}
-      <CollapsibleSection title="Daily income" icon="📊" darkMode={darkMode} defaultOpen={true}>
-        {dailyIncomes.length === 0 ? (
-          <EmptyState icon="📈" title="No income recorded" message="Start tracking your daily income" onAction={() => document.querySelector('input[placeholder*="Amount"]')?.focus()} actionText="➕ Add Income" darkMode={darkMode} />
-        ) : (
-          <>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-              <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder={`Amount (${CONFIG.currency})`} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : '#f8fafc', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
-              <button onClick={handleAddIncome} style={{ padding: '14px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>Add to Cash</button>
-            </div>
-            <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '10px' }}>💡 {investmentPercent}% auto-invested {shouldHoldSavings ? '(ON HOLD)' : ''}</p>
-            <div style={{ marginTop: '16px' }}>
-              <p style={{ fontSize: '14px', fontWeight: '700', marginBottom: '10px', color: darkMode ? '#f8fafc' : '#0f172a' }}>Recent:</p>
-              {dailyIncomes.slice(0, 5).map((income, index) => (
-                <div key={income.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{income.date}</span>
-                    {index === 0 && <span style={{ marginLeft: '8px', fontSize: '10px', background: '#f59e0b', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>LATEST</span>}
-                  </div>
-                  <span style={{ color: '#14b8a6', fontWeight: '700' }}>{hideNumbers ? '+' + CONFIG.currency + '••••' : `+${CONFIG.currency}${income.amount.toLocaleString()}`}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </CollapsibleSection>
-
       {/* Credit Cards */}
       <CollapsibleSection title="Credit cards" icon="💳" darkMode={darkMode} defaultOpen={true}>
         {creditCards.length === 0 ? (
@@ -764,26 +696,13 @@ function App() {
         )}
       </CollapsibleSection>
 
-      {/* Monthly Goals - ✅ FIXED: Add Goal button now works */}
+      {/* Monthly Goals */}
       <CollapsibleSection title="Monthly goals" icon="🎯" darkMode={darkMode}>
         {monthlyGoals.length === 0 ? (
           <EmptyState icon="🎯" title="No goals" message="Set your first financial goal" onAction={() => setShowAddGoal(true)} actionText="➕ Add Goal" darkMode={darkMode} />
         ) : (
           <>
-            {/* ✅ FIXED: Button with explicit onClick handler */}
-            <button 
-              onClick={() => {
-                console.log('Add Goal clicked');
-                setShowAddGoal(true);
-                setEditingGoal(null);
-                setNewGoal({ name: '', target: '', color: '#14b8a6', priority: 'medium' });
-              }} 
-              style={{ width: '100%', padding: '16px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px' }}
-            >
-              ➕ Add Goal
-            </button>
-            
-            {/* ✅ FIXED: Form shows when showAddGoal is true */}
+            <button onClick={() => { setShowAddGoal(true); setEditingGoal(null); setNewGoal({ name: '', target: '', color: '#14b8a6', priority: 'medium' }); }} style={{ width: '100%', padding: '16px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px' }}>➕ Add Goal</button>
             {showAddGoal && (
               <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', display: 'grid', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -802,7 +721,6 @@ function App() {
                 <button onClick={handleAddGoal} style={{ padding: '14px', background: editingGoal ? '#f59e0b' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{editingGoal ? '💾 Update Goal' : '➕ Add Goal'}</button>
               </div>
             )}
-            
             <div style={{ marginTop: '16px' }}>
               {monthlyGoals.map((goal) => {
                 const percentage = Math.min(100, Math.round((goal.current / goal.target) * 100));
@@ -905,6 +823,48 @@ function App() {
           </div>
           <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add Today ({CONFIG.currency}{carExpenses.dailyOil.toLocaleString()})</button>
         </div>
+      </CollapsibleSection>
+
+      {/* ✅✅✅ DAILY INCOME - MOVED HERE, ONLY LINKS TO CASH BALANCE */}
+      <CollapsibleSection title="Daily Income" icon="💵" darkMode={darkMode} defaultOpen={true}>
+        <div style={{ padding: '16px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '12px', marginBottom: '16px' }}>
+          <p style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669' }}>Add income to increase your Cash Balance</p>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder={`Amount (${CONFIG.currency})`} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: `2px solid ${darkMode ? '#064e3b' : '#059669'}`, background: darkMode ? '#064e3b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
+            <button onClick={handleAddIncome} style={{ padding: '14px 28px', background: '#059669', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>Add Income</button>
+          </div>
+        </div>
+        
+        {dailyIncomes.length === 0 ? (
+          <p style={{ textAlign: 'center', color: darkMode ? '#94a3b8' : '#647480', padding: '20px' }}>No income recorded yet this month</p>
+        ) : (
+          <div>
+            <p style={{ fontSize: '14px', fontWeight: '700', marginBottom: '10px', color: darkMode ? '#f8fafc' : '#0f172a' }}>Recent Income:</p>
+            {dailyIncomes.slice(0, 10).map((income, index) => (
+              <div key={income.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{income.date}</span>
+                  {index === 0 && <span style={{ marginLeft: '8px', fontSize: '10px', background: '#f59e0b', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>LATEST</span>}
+                </div>
+                <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '16px' }}>{hideNumbers ? '+' + CONFIG.currency + '••••' : `+${CONFIG.currency}${income.amount.toLocaleString()}`}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CollapsibleSection>
+
+      {/* Pensions & Insurance */}
+      <CollapsibleSection title="Pensions & Insurance" icon="🛡️" darkMode={darkMode}>
+        <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
+          {[{ key: 'nationalPension', label: '🏛️ National Pension' }, { key: 'healthInsurance', label: '🏥 Health Insurance' }, { key: 'carInsurance', label: '🚗 Car Insurance' }, { key: 'taxes', label: '📋 Taxes' }].map((item) => (
+            <div key={item.key} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <span style={{ width: '140px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', fontSize: '13px' }}>{item.label}</span>
+              <input type="number" placeholder="Amount" id={`pension-${item.key}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+              <button onClick={() => handleAddPensionInsurance(item.key, parseFloat(document.getElementById(`pension-${item.key}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add</button>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total: <strong style={{ fontSize: '18px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
       </CollapsibleSection>
 
       {/* Footer */}
