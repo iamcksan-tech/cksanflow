@@ -144,7 +144,7 @@ function App() {
   const [hideNumbers, setHideNumbers] = useState(() => { const s = localStorage.getItem('ckSanFlow_hideNumbers'); return s ? JSON.parse(s) : false; });
   const [monthlyIncomeGoal, setMonthlyIncomeGoal] = useState(() => loadData(`monthlyIncomeGoal_${currentMonth}`, 300000));
 
-  // ✅ Daily Income - SEPARATE STATE (NOT linked to expenses)
+  // Daily Income
   const [dailyIncomes, setDailyIncomes] = useState(() => loadData(`dailyIncomes_${currentMonth}`, []));
   const [todayIncome, setTodayIncome] = useState('');
 
@@ -264,23 +264,49 @@ function App() {
 
   const calculateClosingDate = (paymentDate) => { const date = parseInt(paymentDate); let closing = date - 15; if (closing <= 0) closing += 30; return closing.toString() + 'th'; };
 
-  // ✅✅✅ FIXED: Daily Income ONLY adds to Cash Balance and Monthly Income
+  // ✅ Daily Income - ONLY adds to Cash Balance and Monthly Income
   const handleAddIncome = () => {
     const amount = parseFloat(todayIncome);
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
-    
-    // Add to daily incomes list
     const newIncome = { id: Date.now(), amount, date: new Date().toISOString().split('T')[0] };
     setDailyIncomes([newIncome, ...dailyIncomes]);
-    
-    // ✅ ONLY increases Cash Balance (NOT expenses, NOT anything else)
     setCashAvailable(cashAvailable + amount);
-    
-    // ✅ ONLY increases Monthly Income (for goal tracking)
     setMonthlyIncome(monthlyIncome + amount);
-    
     setTodayIncome('');
     alert(`✅ ${CONFIG.currency}${amount.toLocaleString()} added to Cash Balance!\nMonthly Income: ${CONFIG.currency}${(monthlyIncome + amount).toLocaleString()}`);
+  };
+
+  // ✅ Edit Recent Income (Only first/latest entry)
+  const handleEditIncome = () => {
+    if (dailyIncomes.length === 0) return;
+    const latestIncome = dailyIncomes[0];
+    const newAmount = prompt(`Edit income amount:`, latestIncome.amount.toString());
+    if (newAmount === null) return;
+    const amount = parseFloat(newAmount);
+    if (!validateAmount(amount)) { alert('Invalid amount'); return; }
+    
+    // Calculate difference
+    const diff = amount - latestIncome.amount;
+    
+    // Update cash and monthly income
+    setCashAvailable(cashAvailable + diff);
+    setMonthlyIncome(monthlyIncome + diff);
+    
+    // Update the income entry
+    setDailyIncomes([ { ...latestIncome, amount }, ...dailyIncomes.slice(1) ]);
+    alert('✅ Income updated!');
+  };
+
+  // ✅ Delete Recent Income (Only first/latest entry)
+  const handleDeleteIncome = () => {
+    if (dailyIncomes.length === 0) return;
+    const latestIncome = dailyIncomes[0];
+    if (!confirm(`Delete this income? ${CONFIG.currency}${latestIncome.amount.toLocaleString()} will be removed from Cash Balance.`)) return;
+    
+    setCashAvailable(cashAvailable - latestIncome.amount);
+    setMonthlyIncome(monthlyIncome - latestIncome.amount);
+    setDailyIncomes(dailyIncomes.slice(1));
+    alert('🗑️ Income deleted!');
   };
 
   const handleAddCard = () => {
@@ -825,7 +851,21 @@ function App() {
         </div>
       </CollapsibleSection>
 
-      {/* ✅✅✅ DAILY INCOME - MOVED HERE, ONLY LINKS TO CASH BALANCE */}
+      {/* Pensions & Insurance */}
+      <CollapsibleSection title="Pensions & Insurance" icon="🛡️" darkMode={darkMode}>
+        <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
+          {[{ key: 'nationalPension', label: '🏛️ National Pension' }, { key: 'healthInsurance', label: '🏥 Health Insurance' }, { key: 'carInsurance', label: '🚗 Car Insurance' }, { key: 'taxes', label: '📋 Taxes' }].map((item) => (
+            <div key={item.key} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <span style={{ width: '140px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', fontSize: '13px' }}>{item.label}</span>
+              <input type="number" placeholder="Amount" id={`pension-${item.key}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+              <button onClick={() => handleAddPensionInsurance(item.key, parseFloat(document.getElementById(`pension-${item.key}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add</button>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total: <strong style={{ fontSize: '18px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
+      </CollapsibleSection>
+
+      {/* ✅✅✅ DAILY INCOME - LAST SECTION (Under Pensions) */}
       <CollapsibleSection title="Daily Income" icon="💵" darkMode={darkMode} defaultOpen={true}>
         <div style={{ padding: '16px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '12px', marginBottom: '16px' }}>
           <p style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669' }}>Add income to increase your Cash Balance</p>
@@ -840,31 +880,26 @@ function App() {
         ) : (
           <div>
             <p style={{ fontSize: '14px', fontWeight: '700', marginBottom: '10px', color: darkMode ? '#f8fafc' : '#0f172a' }}>Recent Income:</p>
-            {dailyIncomes.slice(0, 10).map((income, index) => (
+            {dailyIncomes.map((income, index) => (
               <div key={income.id} style={{ padding: '12px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{income.date}</span>
                   {index === 0 && <span style={{ marginLeft: '8px', fontSize: '10px', background: '#f59e0b', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>LATEST</span>}
                 </div>
-                <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '16px' }}>{hideNumbers ? '+' + CONFIG.currency + '••••' : `+${CONFIG.currency}${income.amount.toLocaleString()}`}</span>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '16px' }}>{hideNumbers ? '+' + CONFIG.currency + '••••' : `+${CONFIG.currency}${income.amount.toLocaleString()}`}</span>
+                  {/* ✅ ONLY Show Edit/Delete for LATEST (index 0) */}
+                  {index === 0 && (
+                    <>
+                      <button onClick={handleEditIncome} style={{ padding: '4px 8px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>✏️</button>
+                      <button onClick={handleDeleteIncome} style={{ padding: '4px 8px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>🗑️</button>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         )}
-      </CollapsibleSection>
-
-      {/* Pensions & Insurance */}
-      <CollapsibleSection title="Pensions & Insurance" icon="🛡️" darkMode={darkMode}>
-        <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
-          {[{ key: 'nationalPension', label: '🏛️ National Pension' }, { key: 'healthInsurance', label: '🏥 Health Insurance' }, { key: 'carInsurance', label: '🚗 Car Insurance' }, { key: 'taxes', label: '📋 Taxes' }].map((item) => (
-            <div key={item.key} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <span style={{ width: '140px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', fontSize: '13px' }}>{item.label}</span>
-              <input type="number" placeholder="Amount" id={`pension-${item.key}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-              <button onClick={() => handleAddPensionInsurance(item.key, parseFloat(document.getElementById(`pension-${item.key}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add</button>
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total: <strong style={{ fontSize: '18px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
       </CollapsibleSection>
 
       {/* Footer */}
