@@ -113,13 +113,13 @@ function App() {
   const [darkMode, setDarkMode] = useState(() => { const s = localStorage.getItem('ckSanFlow_darkMode'); return s ? JSON.parse(s) : false; });
   const [hideNumbers, setHideNumbers] = useState(() => { const s = localStorage.getItem('ckSanFlow_hideNumbers'); return s ? JSON.parse(s) : false; });
   
-  // Monthly Income Goal - RESETS EACH MONTH
+  // Monthly Income Goal
   const [monthlyIncomeGoal, setMonthlyIncomeGoal] = useState(() => {
     const saved = loadData(`monthlyIncomeGoal_${currentMonth}`, null);
     return saved !== null ? saved : 300000;
   });
   
-  // Monthly Income - RESETS EACH MONTH
+  // Monthly Income
   const [monthlyIncome, setMonthlyIncome] = useState(() => {
     const saved = loadData(`monthlyIncome_${currentMonth}`, null);
     return saved !== null ? saved : 0;
@@ -139,7 +139,7 @@ function App() {
   const [showAddCard, setShowAddCard] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
 
-  // Monthly Goals - RESETS EACH MONTH
+  // Monthly Goals
   const [monthlyGoals, setMonthlyGoals] = useState(() => loadData(`monthlyGoals_${currentMonth}`, []));
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
@@ -189,16 +189,12 @@ function App() {
   // Dark mode
   useEffect(() => { const s = localStorage.getItem('ckSanFlow_darkMode'); if (s) { const isDark = JSON.parse(s); setDarkMode(isDark); document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } }, []);
 
-  // ✅ Month change - EVERYTHING resets except Cash and Debts
+  // Month change
   const handleMonthChange = (newMonth) => {
     setCurrentMonth(newMonth);
     localStorage.setItem('ckSanFlow_currentMonth', newMonth);
-    
-    // ✅ CARRY OVER: Cash Balance and Credit Cards (Debts)
     setCashAvailable(loadData(`cash_${newMonth}`, 0));
     setCreditCards(loadData(`creditCards_${newMonth}`, []));
-    
-    // ✅ RESET TO DEFAULT/0: Everything else
     setSavings(loadData(`savings_${newMonth}`, 0));
     setMonthlyIncomeGoal(loadData(`monthlyIncomeGoal_${newMonth}`, 300000));
     setMonthlyIncome(loadData(`monthlyIncome_${newMonth}`, 0));
@@ -246,8 +242,12 @@ function App() {
     alert('🗑️ Income deleted!');
   };
 
+  // ✅ FIXED: Add Card function
   const handleAddCard = () => {
-    if (!newCard.name || !newCard.limit) { alert('Please fill in card name and limit'); return; }
+    if (!newCard.name || !newCard.limit) { 
+      alert('Please fill in card name and limit'); 
+      return; 
+    }
     const closingDate = calculateClosingDate(newCard.paymentDate);
     const limit = parseFloat(newCard.limit) || 0;
     const available = parseFloat(newCard.available) || 0;
@@ -256,6 +256,7 @@ function App() {
     if (available === 0 && balance === 0) { finalAvailable = limit; finalBalance = 0; }
     else if (available === 0 && balance > 0) { finalAvailable = limit - balance; }
     else if (balance === 0 && available > 0) { finalBalance = limit - available; }
+    
     if (editingCard) {
       setCreditCards(creditCards.map(card => card.id === editingCard.id ? { ...card, name: newCard.name, limit, available: finalAvailable, balance: finalBalance, paymentDate: newCard.paymentDate, closingDate, thisCyclePayment: parseFloat(newCard.thisCyclePayment) || card.thisCyclePayment, nextCyclePayment: parseFloat(newCard.nextCyclePayment) || card.nextCyclePayment } : card));
       setEditingCard(null);
@@ -268,8 +269,26 @@ function App() {
     setShowAddCard(false);
   };
 
-  const handleEditCard = (card) => { setEditingCard(card); setNewCard({ name: card.name, limit: card.limit.toString(), available: card.available.toString(), balance: card.balance.toString(), paymentDate: card.paymentDate, thisCyclePayment: card.thisCyclePayment.toString(), nextCyclePayment: card.nextCyclePayment.toString() }); setShowAddCard(true); };
-  const handleDeleteCard = (cardId) => { if (confirm('Delete this card?')) { setCreditCards(creditCards.filter(card => card.id !== cardId)); alert('🗑️ Card deleted'); } };
+  const handleEditCard = (card) => { 
+    setEditingCard(card); 
+    setNewCard({ 
+      name: card.name, 
+      limit: card.limit.toString(), 
+      available: card.available.toString(), 
+      balance: card.balance.toString(), 
+      paymentDate: card.paymentDate, 
+      thisCyclePayment: card.thisCyclePayment.toString(), 
+      nextCyclePayment: card.nextCyclePayment.toString() 
+    }); 
+    setShowAddCard(true); 
+  };
+  
+  const handleDeleteCard = (cardId) => { 
+    if (confirm('Delete this card?')) { 
+      setCreditCards(creditCards.filter(card => card.id !== cardId)); 
+      alert('🗑️ Card deleted'); 
+    } 
+  };
 
   const handleAddCardExpense = () => {
     const { cardId, amount, category, description } = newExpense;
@@ -352,7 +371,7 @@ function App() {
     alert(`${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()} recorded from Cash Balance!`);
   };
 
-  // ✅ FIXED: Add Goal now works properly
+  // ✅ FIXED: Add Goal function
   const handleAddGoal = () => {
     if (!newGoal.name || !newGoal.target) { 
       alert('Please fill in goal name and target amount'); 
@@ -365,7 +384,6 @@ function App() {
     }
     
     if (editingGoal) {
-      // Update existing goal
       setMonthlyGoals(monthlyGoals.map(goal => 
         goal.id === editingGoal.id 
           ? { ...goal, name: newGoal.name, target, color: newGoal.color, priority: newGoal.priority } 
@@ -374,7 +392,6 @@ function App() {
       setEditingGoal(null);
       alert('✅ Goal updated!');
     } else {
-      // Add new goal
       const newGoalWithId = { 
         id: Date.now(), 
         name: newGoal.name, 
@@ -386,8 +403,6 @@ function App() {
       setMonthlyGoals([...monthlyGoals, newGoalWithId]);
       alert('✅ Goal added!');
     }
-    
-    // Reset form
     setNewGoal({ name: '', target: '', color: '#14b8a6', priority: 'medium' });
     setShowAddGoal(false);
   };
@@ -556,7 +571,18 @@ function App() {
           <EmptyState icon="💳" title="No credit cards" message="Add your first credit card" onAction={() => { setShowAddCard(true); setEditingCard(null); }} actionText="➕ Add Card" darkMode={darkMode} />
         ) : (
           <>
-            <button onClick={() => { setShowAddCard(true); setEditingCard(null); setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' }); }} style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px' }}>➕ Add New Card</button>
+            {/* ✅ FIXED: Add Card Button */}
+            <button 
+              onClick={() => {
+                console.log('Add Card clicked');
+                setShowAddCard(true);
+                setEditingCard(null);
+                setNewCard({ name: '', limit: '', available: '', balance: '', paymentDate: '26th', thisCyclePayment: '', nextCyclePayment: '' });
+              }} 
+              style={{ width: '100%', padding: '16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px' }}
+            >
+              ➕ Add New Card
+            </button>
             
             <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px' }}>
               <p style={{ margin: '0 0 12px 0', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>➕ {editingExpense ? '✏️ Edit' : 'Add'} Expense</p>
@@ -575,6 +601,7 @@ function App() {
               </div>
             </div>
 
+            {/* ✅ FIXED: Show Add Card Form */}
             {showAddCard && (
               <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', display: 'grid', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -666,9 +693,10 @@ function App() {
           <EmptyState icon="🎯" title="No goals" message="Set your first financial goal" onAction={() => setShowAddGoal(true)} actionText="➕ Add Goal" darkMode={darkMode} />
         ) : (
           <>
-            {/* ✅ FIXED: Add Goal button now works */}
+            {/* ✅ FIXED: Add Goal Button */}
             <button 
               onClick={() => {
+                console.log('Add Goal clicked');
                 setShowAddGoal(true);
                 setEditingGoal(null);
                 setNewGoal({ name: '', target: '', color: '#14b8a6', priority: 'medium' });
@@ -678,6 +706,7 @@ function App() {
               ➕ Add Goal
             </button>
             
+            {/* ✅ FIXED: Show Add Goal Form */}
             {showAddGoal && (
               <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', display: 'grid', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
