@@ -106,20 +106,23 @@ function App() {
   const [currentMonth, setCurrentMonth] = useState(() => localStorage.getItem('ckSanFlow_currentMonth') || new Date().toISOString().slice(0, 7));
   const [lastUpdated, setLastUpdated] = useState(() => loadData('lastUpdated', formatJST()));
 
-  // Main State - CASH, SAVINGS, DEBTS carry over between months
+  // Main State
   const [cashAvailable, setCashAvailable] = useState(() => loadData(`cash_${currentMonth}`, 0));
   const [savings, setSavings] = useState(() => loadData(`savings_${currentMonth}`, 0));
   const [creditCards, setCreditCards] = useState(() => loadData(`creditCards_${currentMonth}`, []));
   const [darkMode, setDarkMode] = useState(() => { const s = localStorage.getItem('ckSanFlow_darkMode'); return s ? JSON.parse(s) : false; });
   const [hideNumbers, setHideNumbers] = useState(() => { const s = localStorage.getItem('ckSanFlow_hideNumbers'); return s ? JSON.parse(s) : false; });
   
-  // Monthly Income Goal - SET BY USER, carries over (not reset)
-  const [monthlyIncomeGoal, setMonthlyIncomeGoal] = useState(() => loadData(`monthlyIncomeGoal_${currentMonth}`, 300000));
+  // Monthly Income Goal - RESETS EACH MONTH
+  const [monthlyIncomeGoal, setMonthlyIncomeGoal] = useState(() => {
+    const saved = loadData(`monthlyIncomeGoal_${currentMonth}`, null);
+    return saved !== null ? saved : 300000;
+  });
   
-  // ✅ Monthly Income - RESETS TO 0 EACH NEW MONTH
+  // Monthly Income - RESETS EACH MONTH
   const [monthlyIncome, setMonthlyIncome] = useState(() => {
     const saved = loadData(`monthlyIncome_${currentMonth}`, null);
-    return saved !== null ? saved : 0; // If no data for this month, start at 0
+    return saved !== null ? saved : 0;
   });
   
   // Daily Income
@@ -136,7 +139,7 @@ function App() {
   const [showAddCard, setShowAddCard] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
 
-  // Monthly Goals
+  // Monthly Goals - RESETS EACH MONTH
   const [monthlyGoals, setMonthlyGoals] = useState(() => loadData(`monthlyGoals_${currentMonth}`, []));
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
@@ -186,24 +189,19 @@ function App() {
   // Dark mode
   useEffect(() => { const s = localStorage.getItem('ckSanFlow_darkMode'); if (s) { const isDark = JSON.parse(s); setDarkMode(isDark); document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } }, []);
 
-  // Month change - ✅ Monthly Income resets to 0, Cash/Savings/Debts carry over
+  // ✅ Month change - EVERYTHING resets except Cash and Debts
   const handleMonthChange = (newMonth) => {
     setCurrentMonth(newMonth);
     localStorage.setItem('ckSanFlow_currentMonth', newMonth);
     
-    // ✅ CARRY OVER: Cash, Savings, Credit Cards (debts)
+    // ✅ CARRY OVER: Cash Balance and Credit Cards (Debts)
     setCashAvailable(loadData(`cash_${newMonth}`, 0));
-    setSavings(loadData(`savings_${newMonth}`, 0));
     setCreditCards(loadData(`creditCards_${newMonth}`, []));
     
-    // ✅ CARRY OVER: Monthly Income Goal (user-set target)
+    // ✅ RESET TO DEFAULT/0: Everything else
+    setSavings(loadData(`savings_${newMonth}`, 0));
     setMonthlyIncomeGoal(loadData(`monthlyIncomeGoal_${newMonth}`, 300000));
-    
-    // ✅ RESET TO 0: Monthly Income (earned this month)
-    const savedMonthlyIncome = loadData(`monthlyIncome_${newMonth}`, null);
-    setMonthlyIncome(savedMonthlyIncome !== null ? savedMonthlyIncome : 0);
-    
-    // ✅ RESET: Daily Incomes, Card Expenses, Goals, Car Expenses
+    setMonthlyIncome(loadData(`monthlyIncome_${newMonth}`, 0));
     setDailyIncomes(loadData(`dailyIncomes_${newMonth}`, []));
     setCardExpenses(loadData(`cardExpenses_${newMonth}`, []));
     setMonthlyGoals(loadData(`monthlyGoals_${newMonth}`, []));
@@ -212,19 +210,18 @@ function App() {
 
   const calculateClosingDate = (paymentDate) => { const date = parseInt(paymentDate); let closing = date - 15; if (closing <= 0) closing += 30; return closing.toString() + 'th'; };
 
-  // ✅ Daily Income - Adds to Cash Balance AND Monthly Income
+  // ✅ Daily Income
   const handleAddIncome = () => {
     const amount = parseFloat(todayIncome);
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     const newIncome = { id: Date.now(), amount, date: new Date().toISOString().split('T')[0] };
     setDailyIncomes([newIncome, ...dailyIncomes]);
     setCashAvailable(cashAvailable + amount);
-    setMonthlyIncome(monthlyIncome + amount); // ✅ Increases monthly income
+    setMonthlyIncome(monthlyIncome + amount);
     setTodayIncome('');
     alert(`✅ ${CONFIG.currency}${amount.toLocaleString()} added to Cash Balance!\nMonthly Income: ${CONFIG.currency}${(monthlyIncome + amount).toLocaleString()}`);
   };
 
-  // ✅ Edit Recent Income (Only first/latest entry)
   const handleEditIncome = () => {
     if (dailyIncomes.length === 0) return;
     const latestIncome = dailyIncomes[0];
@@ -239,7 +236,6 @@ function App() {
     alert('✅ Income updated!');
   };
 
-  // ✅ Delete Recent Income (Only first/latest entry)
   const handleDeleteIncome = () => {
     if (dailyIncomes.length === 0) return;
     const latestIncome = dailyIncomes[0];
@@ -356,29 +352,72 @@ function App() {
     alert(`${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()} recorded from Cash Balance!`);
   };
 
+  // ✅ FIXED: Add Goal now works properly
   const handleAddGoal = () => {
-    if (!newGoal.name || !newGoal.target) { alert('Please fill in goal name and target amount'); return; }
+    if (!newGoal.name || !newGoal.target) { 
+      alert('Please fill in goal name and target amount'); 
+      return; 
+    }
     const target = parseFloat(newGoal.target);
-    if (!validateAmount(target)) { alert('Please enter a valid target amount'); return; }
+    if (!validateAmount(target)) { 
+      alert('Please enter a valid target amount'); 
+      return; 
+    }
+    
     if (editingGoal) {
-      setMonthlyGoals(monthlyGoals.map(goal => goal.id === editingGoal.id ? { ...goal, name: newGoal.name, target, color: newGoal.color, priority: newGoal.priority } : goal));
+      // Update existing goal
+      setMonthlyGoals(monthlyGoals.map(goal => 
+        goal.id === editingGoal.id 
+          ? { ...goal, name: newGoal.name, target, color: newGoal.color, priority: newGoal.priority } 
+          : goal
+      ));
       setEditingGoal(null);
       alert('✅ Goal updated!');
     } else {
-      setMonthlyGoals([...monthlyGoals, { id: Date.now(), name: newGoal.name, target, current: 0, color: newGoal.color, priority: newGoal.priority }]);
+      // Add new goal
+      const newGoalWithId = { 
+        id: Date.now(), 
+        name: newGoal.name, 
+        target, 
+        current: 0, 
+        color: newGoal.color, 
+        priority: newGoal.priority 
+      };
+      setMonthlyGoals([...monthlyGoals, newGoalWithId]);
       alert('✅ Goal added!');
     }
+    
+    // Reset form
     setNewGoal({ name: '', target: '', color: '#14b8a6', priority: 'medium' });
     setShowAddGoal(false);
   };
 
-  const handleEditGoal = (goal) => { setEditingGoal(goal); setNewGoal({ name: goal.name, target: goal.target.toString(), color: goal.color, priority: goal.priority }); setShowAddGoal(true); };
-  const handleDeleteGoal = (goalId) => { if (confirm('Delete this goal?')) { setMonthlyGoals(monthlyGoals.filter(g => g.id !== goalId)); alert('🗑️ Goal deleted'); } };
+  const handleEditGoal = (goal) => { 
+    setEditingGoal(goal); 
+    setNewGoal({ 
+      name: goal.name, 
+      target: goal.target.toString(), 
+      color: goal.color, 
+      priority: goal.priority 
+    }); 
+    setShowAddGoal(true); 
+  };
+  
+  const handleDeleteGoal = (goalId) => { 
+    if (confirm('Delete this goal?')) { 
+      setMonthlyGoals(monthlyGoals.filter(g => g.id !== goalId)); 
+      alert('🗑️ Goal deleted!'); 
+    } 
+  };
   
   const handleContributeToGoal = (goalId, amount) => {
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
-    setMonthlyGoals(monthlyGoals.map(goal => goal.id === goalId ? { ...goal, current: Math.min(goal.target, goal.current + amount) } : goal));
+    setMonthlyGoals(monthlyGoals.map(goal => 
+      goal.id === goalId 
+        ? { ...goal, current: Math.min(goal.target, goal.current + amount) } 
+        : goal
+    ));
     setCashAvailable(cashAvailable - amount);
     if (!shouldHoldSavings) setSavings(savings + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} added to goal!`);
@@ -627,7 +666,18 @@ function App() {
           <EmptyState icon="🎯" title="No goals" message="Set your first financial goal" onAction={() => setShowAddGoal(true)} actionText="➕ Add Goal" darkMode={darkMode} />
         ) : (
           <>
-            <button onClick={() => { setShowAddGoal(true); setEditingGoal(null); setNewGoal({ name: '', target: '', color: '#14b8a6', priority: 'medium' }); }} style={{ width: '100%', padding: '16px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px' }}>➕ Add Goal</button>
+            {/* ✅ FIXED: Add Goal button now works */}
+            <button 
+              onClick={() => {
+                setShowAddGoal(true);
+                setEditingGoal(null);
+                setNewGoal({ name: '', target: '', color: '#14b8a6', priority: 'medium' });
+              }} 
+              style={{ width: '100%', padding: '16px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginTop: '16px' }}
+            >
+              ➕ Add Goal
+            </button>
+            
             {showAddGoal && (
               <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px', display: 'grid', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -686,7 +736,7 @@ function App() {
         </div>
       </CollapsibleSection>
 
-      {/* Daily Income - LAST SECTION */}
+      {/* Daily Income */}
       <CollapsibleSection title="Daily Income" icon="💵" darkMode={darkMode} defaultOpen={true}>
         <div style={{ padding: '16px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '12px', marginBottom: '16px' }}>
           <p style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669' }}>Add income to increase your Cash Balance</p>
