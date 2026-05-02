@@ -21,9 +21,14 @@ const CONFIG = {
 
 const formatJST = (date = new Date()) => {
   return new Intl.DateTimeFormat('ja-JP', {
-    year: 'numeric', month: 'short', day: 'numeric',
+    year: 'numeric', month: 'numeric', day: 'numeric',
     hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo'
   }).format(date);
+};
+
+const formatMonth = (dateStr) => {
+  const date = new Date(dateStr + '-01');
+  return date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', timeZone: 'Asia/Tokyo' });
 };
 
 const autoCategorize = (description) => {
@@ -42,21 +47,21 @@ const validateAmount = (value) => {
 
 // ============ MAIN APP ============
 function App() {
+  // Active Tab
+  const [activeTab, setActiveTab] = useState('overview');
+  
   // Month Management
   const [currentMonth, setCurrentMonth] = useState(() => localStorage.getItem('ckSanFlow_currentMonth') || new Date().toISOString().slice(0, 7));
   const [lastUpdated, setLastUpdated] = useState(() => loadData('lastUpdated', formatJST()));
 
-  // Main State
+  // Main State - CASH & DEBTS CARRY OVER
   const [cashAvailable, setCashAvailable] = useState(() => loadData(`cash_${currentMonth}`, 0));
-  const [savings, setSavings] = useState(() => loadData(`savings_${currentMonth}`, 0));
   const [creditCards, setCreditCards] = useState(() => loadData(`creditCards_${currentMonth}`, []));
-  const [darkMode, setDarkMode] = useState(() => {
-    const s = localStorage.getItem('ckSanFlow_darkMode');
-    return s ? JSON.parse(s) : false;
-  });
-  const [hideNumbers, setHideNumbers] = useState(() => {
-    const s = localStorage.getItem('ckSanFlow_hideNumbers');
-    return s ? JSON.parse(s) : false;
+  
+  // Monthly Reset - SAVINGS & GOALS RESET
+  const [savings, setSavings] = useState(() => {
+    const saved = loadData(`savings_${currentMonth}`, null);
+    return saved !== null ? saved : 0;
   });
   
   // Monthly Income
@@ -75,8 +80,7 @@ function App() {
 
   // Card Expenses
   const [cardExpenses, setCardExpenses] = useState(() => loadData(`cardExpenses_${currentMonth}`, []));
-  const [newExpense, setNewExpense] = useState({ cardId: '', amount: '', category: 'Shopping', description: '' });
-  const [editingExpense, setEditingExpense] = useState(null);
+  const [expenseForm, setExpenseForm] = useState({ cardId: '', amount: '', category: 'Shopping', description: '' });
 
   // Credit Cards - Form State
   const [showCardForm, setShowCardForm] = useState(false);
@@ -104,6 +108,14 @@ function App() {
   // Settings
   const [showSettings, setShowSettings] = useState(false);
   const [appName, setAppName] = useState(() => loadData('appName', 'CkSanFlow'));
+  const [darkMode, setDarkMode] = useState(() => {
+    const s = localStorage.getItem('ckSanFlow_darkMode');
+    return s ? JSON.parse(s) : false;
+  });
+  const [hideNumbers, setHideNumbers] = useState(() => {
+    const s = localStorage.getItem('ckSanFlow_hideNumbers');
+    return s ? JSON.parse(s) : false;
+  });
 
   // CALCULATIONS
   const totalDebts = creditCards.reduce((sum, card) => sum + card.balance, 0);
@@ -112,6 +124,7 @@ function App() {
   const debtPercentage = totalCreditLimit > 0 ? (totalDebts / totalCreditLimit) * 100 : 0;
   const shouldHoldSavings = autoHoldEnabled && debtPercentage > debtThresholdPercent;
   const recommendedSavings = Math.round(monthlyIncome * (CONFIG.defaultSavingsPercent / 100));
+  const incomeProgress = monthlyIncomeGoal > 0 ? (monthlyIncome / monthlyIncomeGoal) * 100 : 0;
 
   // Save with timestamp
   const saveWithTimestamp = (key, value) => {
@@ -124,8 +137,8 @@ function App() {
   // Save all data
   useEffect(() => {
     saveWithTimestamp(`cash_${currentMonth}`, cashAvailable);
-    saveWithTimestamp(`savings_${currentMonth}`, savings);
     saveWithTimestamp(`creditCards_${currentMonth}`, creditCards);
+    saveWithTimestamp(`savings_${currentMonth}`, savings);
     saveWithTimestamp(`dailyIncomes_${currentMonth}`, dailyIncomes);
     saveWithTimestamp(`cardExpenses_${currentMonth}`, cardExpenses);
     saveWithTimestamp(`monthlyGoals_${currentMonth}`, monthlyGoals);
@@ -136,24 +149,19 @@ function App() {
     saveData('debtThresholdPercent', debtThresholdPercent);
     saveData('appName', appName);
     saveData('hideNumbers', hideNumbers);
-  }, [cashAvailable, savings, creditCards, dailyIncomes, cardExpenses, monthlyGoals, monthlyIncomeGoal, monthlyIncome, carExpenses, autoHoldEnabled, debtThresholdPercent, appName, hideNumbers, currentMonth]);
+    saveData('ckSanFlow_darkMode', darkMode);
+  }, [cashAvailable, creditCards, savings, dailyIncomes, cardExpenses, monthlyGoals, monthlyIncomeGoal, monthlyIncome, carExpenses, autoHoldEnabled, debtThresholdPercent, appName, hideNumbers, currentMonth, darkMode]);
 
-  // Dark mode
-  useEffect(() => {
-    const s = localStorage.getItem('ckSanFlow_darkMode');
-    if (s) {
-      const isDark = JSON.parse(s);
-      setDarkMode(isDark);
-      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    }
-  }, []);
-
-  // Month change
+  // Month change - RESET monthly data, KEEP cash & debts
   const handleMonthChange = (newMonth) => {
     setCurrentMonth(newMonth);
     localStorage.setItem('ckSanFlow_currentMonth', newMonth);
+    
+    // ✅ KEEP: Cash Balance and Credit Cards (Debts)
     setCashAvailable(loadData(`cash_${newMonth}`, 0));
     setCreditCards(loadData(`creditCards_${newMonth}`, []));
+    
+    // ✅ RESET: Everything else
     setSavings(loadData(`savings_${newMonth}`, 0));
     setMonthlyIncomeGoal(loadData(`monthlyIncomeGoal_${newMonth}`, 300000));
     setMonthlyIncome(loadData(`monthlyIncome_${newMonth}`, 0));
@@ -178,8 +186,12 @@ function App() {
     setDailyIncomes([newIncome, ...dailyIncomes]);
     setCashAvailable(cashAvailable + amount);
     setMonthlyIncome(monthlyIncome + amount);
+    if (!shouldHoldSavings) {
+      const investAmount = Math.round(amount * (CONFIG.defaultSavingsPercent / 100));
+      setSavings(savings + investAmount);
+    }
     setTodayIncome('');
-    alert(`✅ ${CONFIG.currency}${amount.toLocaleString()} added!`);
+    alert(`✅ ${CONFIG.currency}${amount.toLocaleString()} added to Cash Balance!`);
   };
 
   const handleEditIncome = () => {
@@ -277,18 +289,18 @@ function App() {
 
   // ============ EXPENSE HANDLERS ============
   const handleAddExpense = () => {
-    const expenseAmount = parseFloat(newExpense.amount);
+    const expenseAmount = parseFloat(expenseForm.amount);
     if (!validateAmount(expenseAmount)) { alert('Please enter a valid amount'); return; }
-    if (!newExpense.cardId) { alert('Please select Cash or a card'); return; }
+    if (!expenseForm.cardId) { alert('Please select Cash or a card'); return; }
 
-    if (newExpense.cardId === 'cash') {
+    if (expenseForm.cardId === 'cash') {
       if (expenseAmount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
       setCashAvailable(cashAvailable - expenseAmount);
     } else {
-      const card = creditCards.find(c => c.id === parseInt(newExpense.cardId));
+      const card = creditCards.find(c => c.id === parseInt(expenseForm.cardId));
       if (!card || expenseAmount > card.available) { alert('❌ Expense exceeds available credit!'); return; }
       setCreditCards(creditCards.map(c => {
-        if (c.id === parseInt(newExpense.cardId)) {
+        if (c.id === parseInt(expenseForm.cardId)) {
           const newBalance = c.balance + expenseAmount;
           return { ...c, balance: newBalance, available: c.limit - newBalance };
         }
@@ -299,15 +311,15 @@ function App() {
     const today = new Date().toISOString().split('T')[0];
     setCardExpenses([{
       id: Date.now(),
-      cardId: newExpense.cardId,
+      cardId: expenseForm.cardId,
       amount: expenseAmount,
-      category: autoCategorize(newExpense.description) || newExpense.category,
-      description: newExpense.description,
+      category: autoCategorize(expenseForm.description) || expenseForm.category,
+      description: expenseForm.description,
       date: today
     }, ...cardExpenses]);
 
     alert(`${CONFIG.currency}${expenseAmount.toLocaleString()} recorded!`);
-    setNewExpense({ cardId: '', amount: '', category: 'Shopping', description: '' });
+    setExpenseForm({ cardId: '', amount: '', category: 'Shopping', description: '' });
   };
 
   const handleDeleteExpense = (expenseId) => {
@@ -414,7 +426,7 @@ function App() {
     if (carExpenses.dailyOil > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setCarExpenses({ ...carExpenses, totalThisMonth: carExpenses.totalThisMonth + carExpenses.dailyOil });
     setCashAvailable(cashAvailable - carExpenses.dailyOil);
-    alert(`${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()} recorded!`);
+    alert(`${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()} recorded from Cash Balance!`);
   };
 
   // ============ SETTINGS ============
@@ -422,13 +434,11 @@ function App() {
     const newMode = !darkMode;
     setDarkMode(newMode);
     document.documentElement.setAttribute('data-theme', newMode ? 'dark' : 'light');
-    localStorage.setItem('ckSanFlow_darkMode', newMode);
   };
 
   const toggleHideNumbers = () => {
     const newHide = !hideNumbers;
     setHideNumbers(newHide);
-    localStorage.setItem('ckSanFlow_hideNumbers', newHide);
   };
 
   const handleExport = () => {
@@ -461,7 +471,7 @@ function App() {
     for (let i = -6; i <= 6; i++) {
       const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
       const monthStr = d.toISOString().slice(0, 7);
-      const label = d.toLocaleDateString('ja-JP', { month: 'short', year: 'numeric', timeZone: 'Asia/Tokyo' });
+      const label = d.toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', timeZone: 'Asia/Tokyo' });
       months.push({ value: monthStr, label });
     }
     return months;
@@ -469,286 +479,464 @@ function App() {
 
   // ============ RENDER ============
   return (
-    <div className="App" style={{ minHeight: '100vh', background: darkMode ? '#0f172a' : '#f8fafc', padding: '20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div className="App" style={{ minHeight: '100vh', background: darkMode ? '#0f172a' : '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
+      {/* Top Navigation */}
+      <nav style={{ background: darkMode ? '#1e293b' : 'white', padding: '12px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+          {['overview', 'goals', 'expenses', 'income'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '10px 20px',
+                background: activeTab === tab ? (darkMode ? '#14b8a6' : '#14b8a6') : 'transparent',
+                color: activeTab === tab ? 'white' : (darkMode ? '#94a3b8' : '#647480'),
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: activeTab === tab ? '700' : '500',
+                fontSize: '14px',
+                whiteSpace: 'nowrap',
+                textTransform: 'capitalize'
+              }}
+            >
+              {tab === 'overview' && '📊 '}
+              {tab === 'goals' && '🎯 '}
+              {tab === 'expenses' && '💳 '}
+              {tab === 'income' && '💵 '}
+              {tab}
+            </button>
+          ))}
+        </div>
+      </nav>
+
       {/* Header */}
-      <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: darkMode ? '#f8fafc' : '#0f172a' }}>💰 {appName}</h1>
-          <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: darkMode ? '#94a3b8' : '#64748b' }}>Smart Finance Manager</p>
-          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: darkMode ? '#64748b' : '#94a3b8' }}>🔄 Updated: {lastUpdated} JST</p>
+      <header style={{ padding: '20px', background: darkMode ? '#1e293b' : 'white', borderBottom: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: darkMode ? '#f8fafc' : '#0f172a' }}>💰 {appName}</h1>
+            <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: darkMode ? '#94a3b8' : '#64748b' }}>Smart Finance Manager</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: darkMode ? '#64748b' : '#94a3b8' }}>🔄 Updated: {lastUpdated} JST</p>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <select value={currentMonth} onChange={(e) => handleMonthChange(e.target.value)} style={{ padding: '8px 12px', background: darkMode ? '#0f172a' : '#f8fafc', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, borderRadius: '8px', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }}>
+              {generateMonthOptions().map(m => (<option key={m.value} value={m.value}>{m.label}</option>))}
+            </select>
+            <button onClick={toggleHideNumbers} style={{ padding: '8px 12px', background: hideNumbers ? '#8b5cf6' : (darkMode ? '#0f172a' : '#f8fafc'), border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px' }}>{hideNumbers ? '🙈' : '👁️'}</button>
+            <button onClick={toggleDarkMode} style={{ padding: '8px 12px', background: darkMode ? '#fbbf24' : '#0f172a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', color: darkMode ? '#0f172a' : 'white' }}>{darkMode ? '☀️' : '🌙'}</button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <select value={currentMonth} onChange={(e) => handleMonthChange(e.target.value)} style={{ padding: '10px 14px', background: darkMode ? '#1e293b' : 'white', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, borderRadius: '10px', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }}>
-            {generateMonthOptions().map(m => (<option key={m.value} value={m.value}>{m.label}</option>))}
-          </select>
-          <button onClick={toggleHideNumbers} style={{ padding: '10px 14px', background: hideNumbers ? '#8b5cf6' : (darkMode ? '#1e293b' : 'white'), border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', color: hideNumbers ? 'white' : (darkMode ? '#f8fafc' : '#0f172a') }}>👁️</button>
-          <button onClick={toggleDarkMode} style={{ padding: '10px 14px', background: darkMode ? '#fbbf24' : '#1e293b', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px', color: darkMode ? '#0f172a' : 'white' }}>{darkMode ? '☀️' : '🌙'}</button>
-          <button onClick={() => setShowSettings(!showSettings)} style={{ padding: '10px 14px', background: darkMode ? '#1e293b' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '18px' }}>📊</button>
-        </div>
+
+        {shouldHoldSavings && (
+          <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)', padding: '12px 16px', borderRadius: '10px', marginBottom: '12px' }}>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: 'white' }}>⏸️ Savings ON HOLD - Debts at {debtPercentage.toFixed(1)}%</p>
+          </div>
+        )}
       </header>
 
-      {shouldHoldSavings && (
-        <div style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)', padding: '16px 20px', borderRadius: '12px', marginBottom: '20px' }}>
-          <p style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'white' }}>⏸️ Savings ON HOLD</p>
-          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.95)' }}>Debts at {debtPercentage.toFixed(1)}% - Focus on paying down to {debtThresholdPercent}%</p>
-        </div>
-      )}
-
-      {/* Dashboard Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '28px', marginBottom: '8px' }}>💵</div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>CASH BALANCE</p>
-          <p style={{ margin: '6px 0 0 0', fontSize: '24px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${cashAvailable.toLocaleString()}`}</p>
-        </div>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' : 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '28px', marginBottom: '8px' }}>⚠️</div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>DEBTS</p>
-          <p style={{ margin: '6px 0 0 0', fontSize: '24px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${totalDebts.toLocaleString()}`}</p>
-          <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: 'rgba(255,255,255,0.9)' }}>{creditCards.length > 0 ? debtPercentage.toFixed(1) : 0}% of limit</p>
-        </div>
-        <div style={{ background: darkMode ? 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)' : 'linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '28px', marginBottom: '8px' }}>📊</div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>INCOME GOAL</p>
-          <p style={{ margin: '6px 0 0 0', fontSize: '20px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${monthlyIncomeGoal.toLocaleString()}`}</p>
-          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>{hideNumbers ? '••••' : `${Math.round((monthlyIncome / monthlyIncomeGoal) * 100)}%`} achieved</p>
-        </div>
-        <div style={{ background: shouldHoldSavings ? 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)', padding: '20px 16px', borderRadius: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '28px', marginBottom: '8px' }}>{shouldHoldSavings ? '⏸️' : '💰'}</div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.9)', fontWeight: '600' }}>SAVINGS</p>
-          <p style={{ margin: '6px 0 0 0', fontSize: '20px', fontWeight: '800', color: 'white' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${savings.toLocaleString()}`}</p>
-        </div>
-      </div>
-
-      {/* Settings Panel */}
-      {showSettings && (
-        <div style={{ background: darkMode ? '#1e293b' : 'white', padding: '20px', borderRadius: '16px', marginBottom: '20px' }}>
-          <h3 style={{ margin: '0 0 16px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '700' }}>Settings</h3>
-          <div style={{ display: 'grid', gap: '10px' }}>
-            <button onClick={toggleDarkMode} style={{ padding: '14px', background: darkMode ? '#fbbf24' : '#0f172a', color: darkMode ? '#0f172a' : 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</button>
-            <button onClick={toggleHideNumbers} style={{ padding: '14px', background: hideNumbers ? '#8b5cf6' : '#0f172a', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{hideNumbers ? '👁️ Show Numbers' : '🙈 Hide Numbers'}</button>
-            <button onClick={handleExport} style={{ padding: '14px', background: '#667eea', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>📦 Export Backup</button>
-            <button onClick={handleReset} style={{ padding: '14px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>🗑️ Reset All Data</button>
-          </div>
-        </div>
-      )}
-
-      {/* Credit Cards Section */}
-      <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>💳 Credit Cards</h2>
-          <button onClick={() => handleOpenCardForm()} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>➕ Add Card</button>
-        </div>
-
-        {/* Add Card Form */}
-        {showCardForm && (
-          <div style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '16px', borderRadius: '12px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h4 style={{ margin: 0, color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>{editingCard ? '✏️ Edit Card' : '➕ New Card'}</h4>
-              <button onClick={handleCloseCardForm} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✕ Cancel</button>
-            </div>
-            <div style={{ display: 'grid', gap: '10px' }}>
-              <input type="text" placeholder="Card Name" value={cardForm.name} onChange={(e) => setCardForm({...cardForm, name: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <input type="number" placeholder="Limit" value={cardForm.limit} onChange={(e) => setCardForm({...cardForm, limit: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-                <input type="number" placeholder="Available" value={cardForm.available} onChange={(e) => setCardForm({...cardForm, available: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+      {/* Main Content */}
+      <main style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+        
+        {/* OVERVIEW TAB */}
+        {activeTab === 'overview' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+            
+            {/* Performance Insights */}
+            <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>📈 Performance Insights</h2>
+              
+              {/* Income Progress Gauge */}
+              <div style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '20px', borderRadius: '12px', textAlign: 'center', marginBottom: '20px' }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>Income Progress Gauge</h3>
+                <div style={{ position: 'relative', width: '200px', height: '200px', margin: '0 auto 16px' }}>
+                  <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)', width: '100%', height: '100%' }}>
+                    <circle cx="50" cy="50" r="40" fill="none" stroke={darkMode ? '#334155' : '#e2e8f0'} strokeWidth="12" />
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="url(#gradient)" strokeWidth="12" strokeDasharray={`${Math.min(100, incomeProgress) * 2.51} 251`} strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.5s ease' }} />
+                    <defs>
+                      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#14b8a6" />
+                        <stop offset="100%" stopColor="#8b5cf6" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                    <p style={{ margin: 0, fontSize: '32px', fontWeight: '800', color: darkMode ? '#f8fafc' : '#0f172a' }}>{Math.round(incomeProgress)}%</p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${monthlyIncomeGoal.toLocaleString()}`}</p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: darkMode ? '#64748b' : '#94a3b8' }}>Income Goal</p>
+                    <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${monthlyIncome.toLocaleString()}`} achieved</p>
+                  </div>
+                </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <input type="number" placeholder="Balance" value={cardForm.balance} onChange={(e) => setCardForm({...cardForm, balance: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-                <select value={cardForm.paymentDate} onChange={(e) => setCardForm({...cardForm, paymentDate: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
-                  <option value="10th">10th (Close: 25th)</option>
-                  <option value="26th">26th (Close: 11th)</option>
-                  <option value="27th">27th (Close: 12th)</option>
+
+              {/* Monthly Goals */}
+              <div>
+                <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>🎯 Monthly Goals</h3>
+                {monthlyGoals.length === 0 ? (
+                  <p style={{ color: darkMode ? '#94a3b8' : '#647480', textAlign: 'center', padding: '20px' }}>No goals yet</p>
+                ) : (
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                    {monthlyGoals.slice(0, 3).map((goal, idx) => (
+                      <div key={goal.id} style={{ flex: 1, background: darkMode ? '#0f172a' : '#f8fafc', padding: '12px', borderRadius: '8px', textAlign: 'center' }}>
+                        <div style={{ width: '100%', height: '6px', background: darkMode ? '#334155' : '#e2e8f0', borderRadius: '3px', marginBottom: '8px', overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.min(100, (goal.current / goal.target) * 100)}%`, height: '100%', background: goal.color, borderRadius: '3px' }}></div>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '11px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>{goal.name}</p>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${goal.target.toLocaleString()}`}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Key Balances & Actions */}
+            <div style={{ display: 'grid', gap: '12px' }}>
+              {/* Cash Balance */}
+              <div style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', borderRadius: '16px', padding: '20px', color: 'white' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>💵 Cash Balance</h3>
+                  <span style={{ fontSize: '20px' }}>💰</span>
+                </div>
+                <p style={{ margin: '0 0 16px 0', fontSize: '32px', fontWeight: '800' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${cashAvailable.toLocaleString()}`}</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <button onClick={() => setActiveTab('income')} style={{ padding: '10px', background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>+ Add</button>
+                  <button style={{ padding: '10px', background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>⇄ Transfer</button>
+                </div>
+              </div>
+
+              {/* Savings */}
+              <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>💰 Savings</h3>
+                  <span style={{ fontSize: '20px' }}>💵</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: darkMode ? '#f8fafc' : '#0f172a' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${savings.toLocaleString()}`}</p>
+              </div>
+
+              {/* Debts */}
+              <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', border: `2px solid ${debtPercentage > 50 ? '#ef4444' : (darkMode ? '#334155' : '#e2e8f0')}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>⚠️ Debts</h3>
+                  <span style={{ fontSize: '20px' }}>{debtPercentage > 50 ? '🚨' : '💳'}</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '28px', fontWeight: '800', color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${totalDebts.toLocaleString()}`}</p>
+                {creditCards.length > 0 && (
+                  <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#647480' }}>{debtPercentage.toFixed(1)}% of limit used</p>
+                )}
+              </div>
+            </div>
+
+            {/* Activity Feed */}
+            <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', gridColumn: '1 / -1', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>📋 Activity Feed</h2>
+                <button onClick={() => handleOpenGoalForm()} style={{ padding: '8px 16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>+ Add Goal</button>
+              </div>
+              
+              {cardExpenses.length === 0 && dailyIncomes.length === 0 ? (
+                <p style={{ color: darkMode ? '#94a3b8' : '#647480', textAlign: 'center', padding: '40px' }}>No activity yet this month</p>
+              ) : (
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  {[...dailyIncomes.slice(0, 5).map(i => ({ ...i, type: 'income' })), ...cardExpenses.slice(0, 5).map(e => ({ ...e, type: 'expense' }))]
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .slice(0, 10)
+                    .map((item) => (
+                      <div key={item.id} style={{ padding: '12px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontSize: '20px' }}>{item.type === 'income' ? '💵' : getCategoryIcon(item.category)}</span>
+                          <div>
+                            <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>
+                              {item.type === 'income' ? 'Income' : item.description || item.category}
+                            </p>
+                            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#647480' }}>{item.date}</p>
+                          </div>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: item.type === 'income' ? '#14b8a6' : '#ef4444' }}>
+                          {item.type === 'income' ? '+' : '-'}{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${item.amount.toLocaleString()}`}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            {/* Credit Cards */}
+            <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>💳 Credit Cards</h2>
+                <button onClick={() => handleOpenCardForm()} style={{ padding: '8px 16px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>Add/Track New Card</button>
+              </div>
+
+              {showCardForm && (
+                <div style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '16px', borderRadius: '12px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>{editingCard ? '✏️ Edit Card' : '➕ New Card'}</h4>
+                    <button onClick={handleCloseCardForm} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✕ Cancel</button>
+                  </div>
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    <input type="text" placeholder="Card Name" value={cardForm.name} onChange={(e) => setCardForm({...cardForm, name: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <input type="number" placeholder="Limit" value={cardForm.limit} onChange={(e) => setCardForm({...cardForm, limit: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                      <input type="number" placeholder="Available" value={cardForm.available} onChange={(e) => setCardForm({...cardForm, available: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <input type="number" placeholder="Balance" value={cardForm.balance} onChange={(e) => setCardForm({...cardForm, balance: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                      <select value={cardForm.paymentDate} onChange={(e) => setCardForm({...cardForm, paymentDate: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
+                        <option value="10th">10th (Close: 25th)</option>
+                        <option value="26th">26th (Close: 11th)</option>
+                        <option value="27th">27th (Close: 12th)</option>
+                      </select>
+                    </div>
+                    <button onClick={handleSaveCard} style={{ padding: '14px', background: editingCard ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{editingCard ? '💾 Update' : '➕ Add Card'}</button>
+                  </div>
+                </div>
+              )}
+
+              {creditCards.length === 0 ? (
+                <p style={{ color: darkMode ? '#94a3b8' : '#647480', textAlign: 'center', padding: '40px' }}>No credit cards yet</p>
+              ) : (
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  {creditCards.map((card) => (
+                    <div key={card.id} style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '16px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.name}</h4>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => handleOpenCardForm(card)} style={{ padding: '6px 12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✏️</button>
+                          <button onClick={() => handleDeleteCard(card.id)} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>🗑️</button>
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px' }}>
+                        <div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Limit:</span> <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.limit.toLocaleString()}`}</strong></div>
+                        <div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Available:</span> <strong style={{ color: '#14b8a6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.available.toLocaleString()}`}</strong></div>
+                        <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Balance:</span> <strong style={{ color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.balance.toLocaleString()}`}</strong></div>
+                      </div>
+                      {card.balance > 0 && cashAvailable > 0 && (
+                        <div style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
+                          <input type="number" placeholder="Pay amount" id={`pay-${card.id}`} defaultValue={Math.min(card.balance, cashAvailable)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                          <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-${card.id}`).value) || Math.min(card.balance, cashAvailable))} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700' }}>Pay</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Daily Income */}
+            <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>💵 Daily Income</h2>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder={`Amount (${CONFIG.currency})`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
+                <button onClick={handleAddIncome} style={{ padding: '12px 24px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>Add</button>
+              </div>
+              {dailyIncomes.length === 0 ? (
+                <p style={{ color: darkMode ? '#94a3b8' : '#647480', textAlign: 'center', padding: '20px' }}>No income recorded yet</p>
+              ) : (
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  {dailyIncomes.slice(0, 5).map((income, index) => (
+                    <div key={income.id} style={{ padding: '12px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{income.date}</span>
+                        {index === 0 && <span style={{ marginLeft: '8px', fontSize: '10px', background: '#f59e0b', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>LATEST</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '16px' }}>{hideNumbers ? '+' + CONFIG.currency + '••••' : `+${CONFIG.currency}${income.amount.toLocaleString()}`}</span>
+                        {index === 0 && (
+                          <>
+                            <button onClick={handleEditIncome} style={{ padding: '4px 8px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>✏️</button>
+                            <button onClick={handleDeleteIncome} style={{ padding: '4px 8px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>🗑️</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Car Expenses */}
+            <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>🚗 Car Expenses</h2>
+              <div style={{ padding: '14px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '10px', marginBottom: '14px' }}>
+                <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>⛽ Daily Oil</p>
+                <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()}`} per day</p>
+                <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>This month: <strong style={{ color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.totalThisMonth.toLocaleString()}`}</strong></p>
+              </div>
+              <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add Today ({CONFIG.currency}{carExpenses.dailyOil.toLocaleString()})</button>
+            </div>
+          </div>
+        )}
+
+        {/* GOALS TAB */}
+        {activeTab === 'goals' && (
+          <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>🎯 Monthly Goals</h2>
+              <button onClick={() => handleOpenGoalForm()} style={{ padding: '12px 24px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>➕ Add Goal</button>
+            </div>
+
+            {showGoalForm && (
+              <div style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>{editingGoal ? '✏️ Edit Goal' : '➕ New Goal'}</h3>
+                  <button onClick={handleCloseGoalForm} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>✕ Cancel</button>
+                </div>
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <input type="text" placeholder="Goal Name" value={goalForm.name} onChange={(e) => setGoalForm({...goalForm, name: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                  <input type="number" placeholder={`Target (${CONFIG.currency})`} value={goalForm.target} onChange={(e) => setGoalForm({...goalForm, target: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                  <select value={goalForm.color} onChange={(e) => setGoalForm({...goalForm, color: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
+                    <option value="#14b8a6">🟢 Teal</option>
+                    <option value="#8b5cf6">🟣 Purple</option>
+                    <option value="#f59e0b">🟠 Orange</option>
+                    <option value="#ef4444">🔴 Red</option>
+                    <option value="#3b82f6">🔵 Blue</option>
+                  </select>
+                  <button onClick={handleSaveGoal} style={{ padding: '14px', background: editingGoal ? '#f59e0b' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{editingGoal ? '💾 Update Goal' : '➕ Add Goal'}</button>
+                </div>
+              </div>
+            )}
+
+            {monthlyGoals.length === 0 ? (
+              <p style={{ color: darkMode ? '#94a3b8' : '#647480', textAlign: 'center', padding: '60px', fontSize: '16px' }}>No goals yet. Click "➕ Add Goal" to create your first goal!</p>
+            ) : (
+              <div style={{ display: 'grid', gap: '16px' }}>
+                {monthlyGoals.map((goal) => (
+                  <div key={goal.id} style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '20px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{goal.name}</h3>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => handleOpenGoalForm(goal)} style={{ padding: '8px 16px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>✏️ Edit</button>
+                        <button onClick={() => handleDeleteGoal(goal.id)} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>🗑️ Delete</button>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px' }}>
+                        <span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Progress</span>
+                        <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '700' }}>{Math.round((goal.current / goal.target) * 100)}%</span>
+                      </div>
+                      <div style={{ width: '100%', height: '12px', background: darkMode ? '#334155' : '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.min(100, (goal.current / goal.target) * 100)}%`, height: '100%', background: goal.color, borderRadius: '6px', transition: 'width 0.5s ease' }}></div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '13px' }}>
+                        <span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${goal.current.toLocaleString()}`}</span>
+                        <span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${goal.target.toLocaleString()}`}</span>
+                      </div>
+                    </div>
+                    {goal.current < goal.target && (
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <input type="number" placeholder="Contribute amount" id={`goal-${goal.id}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                        <button onClick={() => handleContributeToGoal(goal.id, parseFloat(document.getElementById(`goal-${goal.id}`).value))} style={{ padding: '12px 24px', background: goal.color, color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Contribute</button>
+                      </div>
+                    )}
+                    {goal.current >= goal.target && (
+                      <div style={{ padding: '12px', background: '#14b8a6', color: 'white', borderRadius: '8px', textAlign: 'center', fontWeight: '700' }}>✅ Goal Completed!</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* EXPENSES TAB */}
+        {activeTab === 'expenses' && (
+          <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+            <h2 style={{ margin: '0 0 20px 0', fontSize: '24px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>💳 Expenses</h2>
+            
+            {/* Add Expense Form */}
+            <div style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>➕ Add New Expense</h3>
+              <div style={{ display: 'grid', gap: '12px' }}>
+                <select value={expenseForm.cardId} onChange={(e) => setExpenseForm({...expenseForm, cardId: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
+                  <option value="">Select Payment Method</option>
+                  <option value="cash">💵 Cash Balance</option>
+                  {creditCards.map(card => (<option key={card.id} value={card.id}>{card.name}</option>))}
                 </select>
+                <input type="text" placeholder="Description (e.g., Amazon, 7-Eleven)" value={expenseForm.description} onChange={(e) => setExpenseForm({...expenseForm, description: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                <input type="number" placeholder={`Amount (${CONFIG.currency})`} value={expenseForm.amount} onChange={(e) => setExpenseForm({...expenseForm, amount: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
+                <button onClick={handleAddExpense} style={{ padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '16px' }}>Record Expense</button>
               </div>
-              <button onClick={handleSaveCard} style={{ padding: '14px', background: editingCard ? '#f59e0b' : '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{editingCard ? '💾 Update' : '➕ Add Card'}</button>
             </div>
-          </div>
-        )}
 
-        {/* Cards List */}
-        {creditCards.length === 0 ? (
-          <p style={{ textAlign: 'center', color: darkMode ? '#94a3b8' : '#647480', padding: '40px' }}>No credit cards yet. Click "➕ Add Card" to add one.</p>
-        ) : (
-          <div style={{ display: 'grid', gap: '12px' }}>
-            {creditCards.map((card) => (
-              <div key={card.id} style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '16px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{card.name}</h4>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => handleOpenCardForm(card)} style={{ padding: '6px 12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✏️</button>
-                    <button onClick={() => handleDeleteCard(card.id)} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>🗑️</button>
+            {/* Expense List */}
+            {cardExpenses.length === 0 ? (
+              <p style={{ color: darkMode ? '#94a3b8' : '#647480', textAlign: 'center', padding: '60px', fontSize: '16px' }}>No expenses yet this month</p>
+            ) : (
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {cardExpenses.map((expense) => (
+                  <div key={expense.id} style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '16px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '24px' }}>{getCategoryIcon(expense.category)}</span>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{expense.description || expense.category}</p>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{expense.cardId === 'cash' ? '💵 Cash' : creditCards.find(c => c.id === parseInt(expense.cardId))?.name} • {expense.date}</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <p style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${expense.amount.toLocaleString()}`}</p>
+                        <button onClick={() => handleDeleteExpense(expense.id)} style={{ padding: '8px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>🗑️</button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px' }}>
-                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Limit:</span> <strong style={{ color: darkMode ? '#f8fafc' : '#0f172a' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.limit.toLocaleString()}`}</strong></div>
-                  <div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Available:</span> <strong style={{ color: '#14b8a6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.available.toLocaleString()}`}</strong></div>
-                  <div style={{ gridColumn: 'span 2' }}><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Balance:</span> <strong style={{ color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${card.balance.toLocaleString()}`}</strong></div>
-                </div>
-                {card.balance > 0 && cashAvailable > 0 && (
-                  <div style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
-                    <input type="number" placeholder="Pay amount" id={`pay-${card.id}`} defaultValue={Math.min(card.balance, cashAvailable)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-                    <button onClick={() => handlePayCard(card.id, parseFloat(document.getElementById(`pay-${card.id}`).value) || Math.min(card.balance, cashAvailable))} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700' }}>Pay</button>
-                  </div>
-                )}
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
 
-        {/* Add Expense */}
-        <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
-          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>➕ Add Expense</h3>
-          <div style={{ display: 'grid', gap: '10px' }}>
-            <select value={newExpense.cardId} onChange={(e) => setNewExpense({...newExpense, cardId: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
-              <option value="">Select Payment Method</option>
-              <option value="cash">💵 Cash</option>
-              {creditCards.map(card => (<option key={card.id} value={card.id}>{card.name}</option>))}
-            </select>
-            <input type="text" placeholder="Description (e.g., Amazon, 7-Eleven)" value={newExpense.description} onChange={(e) => setNewExpense({...newExpense, description: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <input type="number" placeholder={`Amount (${CONFIG.currency})`} value={newExpense.amount} onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <button onClick={handleAddExpense} style={{ padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add Expense</button>
-          </div>
-        </div>
-
-        {/* Expense List */}
-        {cardExpenses.length > 0 && (
-          <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
-            <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>📜 Recent Expenses</h3>
-            <div style={{ display: 'grid', gap: '8px' }}>
-              {cardExpenses.slice(0, 10).map((expense) => (
-                <div key={expense.id} style={{ padding: '12px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>{getCategoryIcon(expense.category)} {expense.category}</p>
-                    <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#647480' }}>{expense.cardId === 'cash' ? '💵 Cash' : creditCards.find(c => c.id === parseInt(expense.cardId))?.name} • {expense.date}</p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <p style={{ margin: 0, fontWeight: '700', color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${expense.amount.toLocaleString()}`}</p>
-                    <button onClick={() => handleDeleteExpense(expense.id)} style={{ padding: '4px 8px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>🗑️</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Monthly Goals Section */}
-      <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>🎯 Monthly Goals</h2>
-          <button onClick={() => handleOpenGoalForm()} style={{ padding: '10px 20px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>➕ Add Goal</button>
-        </div>
-
-        {/* Add Goal Form */}
-        {showGoalForm && (
-          <div style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '16px', borderRadius: '12px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h4 style={{ margin: 0, color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px' }}>{editingGoal ? '✏️ Edit Goal' : '➕ New Goal'}</h4>
-              <button onClick={handleCloseGoalForm} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✕ Cancel</button>
-            </div>
-            <div style={{ display: 'grid', gap: '10px' }}>
-              <input type="text" placeholder="Goal Name" value={goalForm.name} onChange={(e) => setGoalForm({...goalForm, name: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-              <input type="number" placeholder={`Target (${CONFIG.currency})`} value={goalForm.target} onChange={(e) => setGoalForm({...goalForm, target: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-              <select value={goalForm.color} onChange={(e) => setGoalForm({...goalForm, color: e.target.value})} style={{ padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }}>
-                <option value="#14b8a6">🟢 Teal</option>
-                <option value="#8b5cf6">🟣 Purple</option>
-                <option value="#f59e0b">🟠 Orange</option>
-                <option value="#ef4444">🔴 Red</option>
-                <option value="#3b82f6">🔵 Blue</option>
-              </select>
-              <button onClick={handleSaveGoal} style={{ padding: '14px', background: editingGoal ? '#f59e0b' : '#8b5cf6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>{editingGoal ? '💾 Update' : '➕ Add Goal'}</button>
-            </div>
-          </div>
-        )}
-
-        {/* Goals List */}
-        {monthlyGoals.length === 0 ? (
-          <p style={{ textAlign: 'center', color: darkMode ? '#94a3b8' : '#647480', padding: '40px' }}>No goals yet. Click "➕ Add Goal" to add one.</p>
-        ) : (
-          <div style={{ display: 'grid', gap: '12px' }}>
-            {monthlyGoals.map((goal) => (
-              <div key={goal.id} style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '16px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>{goal.name}</h4>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => handleOpenGoalForm(goal)} style={{ padding: '6px 12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>✏️</button>
-                    <button onClick={() => handleDeleteGoal(goal.id)} style={{ padding: '6px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>🗑️</button>
-                  </div>
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
-                    <span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Progress</span>
-                    <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{Math.round((goal.current / goal.target) * 100)}%</span>
-                  </div>
-                  <div style={{ width: '100%', height: '10px', background: darkMode ? '#334155' : '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.min(100, (goal.current / goal.target) * 100)}%`, height: '100%', background: goal.color, borderRadius: '6px' }}></div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '12px' }}>
-                    <span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${goal.current.toLocaleString()}`}</span>
-                    <span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${goal.target.toLocaleString()}`}</span>
-                  </div>
-                </div>
-                {goal.current < goal.target && (
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <input type="number" placeholder="Contribute" id={`goal-${goal.id}`} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-                    <button onClick={() => handleContributeToGoal(goal.id, parseFloat(document.getElementById(`goal-${goal.id}`).value))} style={{ padding: '10px 20px', background: goal.color, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700' }}>Add</button>
-                  </div>
-                )}
+        {/* INCOME TAB */}
+        {activeTab === 'income' && (
+          <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
+            <h2 style={{ margin: '0 0 20px 0', fontSize: '24px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>💵 Daily Income</h2>
+            
+            {/* Add Income */}
+            <div style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600', color: darkMode ? '#f8fafc' : '#0f172a' }}>➕ Add Income</h3>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder={`Amount (${CONFIG.currency})`} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#1e293b' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '16px', fontWeight: '600' }} />
+                <button onClick={handleAddIncome} style={{ padding: '14px 32px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '16px' }}>Add Income</button>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <p style={{ margin: '12px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>💡 {CONFIG.defaultSavingsPercent}% automatically saved to Savings (if not on hold)</p>
+            </div>
 
-      {/* Car Expenses */}
-      <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
-        <h2 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>🚗 Car Expenses</h2>
-        <div style={{ padding: '14px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '10px', marginBottom: '14px' }}>
-          <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>⛽ Daily Oil</p>
-          <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()}`} per day</p>
-          <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>This month: <strong style={{ color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.totalThisMonth.toLocaleString()}`}</strong></p>
-        </div>
-        <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add Today ({CONFIG.currency}{carExpenses.dailyOil.toLocaleString()})</button>
-      </div>
-
-      {/* Daily Income */}
-      <div style={{ background: darkMode ? '#1e293b' : 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.06)' }}>
-        <h2 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>💵 Daily Income</h2>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-          <input type="number" value={todayIncome} onChange={(e) => setTodayIncome(e.target.value)} placeholder={`Amount (${CONFIG.currency})`} style={{ flex: 1, padding: '14px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '15px', fontWeight: '600' }} />
-          <button onClick={handleAddIncome} style={{ padding: '14px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '15px' }}>Add</button>
-        </div>
-        {dailyIncomes.length === 0 ? (
-          <p style={{ textAlign: 'center', color: darkMode ? '#94a3b8' : '#647480', padding: '20px' }}>No income recorded yet this month</p>
-        ) : (
-          <div style={{ display: 'grid', gap: '8px' }}>
-            {dailyIncomes.map((income, index) => (
-              <div key={income.id} style={{ padding: '12px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>{income.date}</span>
-                  {index === 0 && <span style={{ marginLeft: '8px', fontSize: '10px', background: '#f59e0b', color: 'white', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>LATEST</span>}
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '16px' }}>{hideNumbers ? '+' + CONFIG.currency + '••••' : `+${CONFIG.currency}${income.amount.toLocaleString()}`}</span>
-                  {index === 0 && (
-                    <>
-                      <button onClick={handleEditIncome} style={{ padding: '4px 8px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>✏️</button>
-                      <button onClick={handleDeleteIncome} style={{ padding: '4px 8px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>🗑️</button>
-                    </>
-                  )}
-                </div>
+            {/* Income List */}
+            {dailyIncomes.length === 0 ? (
+              <p style={{ color: darkMode ? '#94a3b8' : '#647480', textAlign: 'center', padding: '60px', fontSize: '16px' }}>No income recorded yet this month</p>
+            ) : (
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {dailyIncomes.map((income, index) => (
+                  <div key={income.id} style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '16px', borderRadius: '12px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '24px' }}>💵</span>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>Daily Income</p>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{income.date}</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <p style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#14b8a6' }}>+{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${income.amount.toLocaleString()}`}</p>
+                        {index === 0 && (
+                          <>
+                            <button onClick={handleEditIncome} style={{ padding: '8px 12px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>✏️</button>
+                            <button onClick={handleDeleteIncome} style={{ padding: '8px 12px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>🗑️</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
-      </div>
+      </main>
 
       {/* Footer */}
-      <footer style={{ textAlign: 'center', padding: '20px', color: darkMode ? '#64748b' : '#94a3b8', fontSize: '12px', marginTop: '24px', borderTop: `2px solid ${darkMode ? '#1e293b' : '#e2e8f0'}` }}>
-        <p style={{ margin: 0 }}>© 2026 {appName}</p>
-        <p style={{ margin: '4px 0 0 0', opacity: 0.8 }}>🔐 All data stored locally • No tracking</p>
+      <footer style={{ textAlign: 'center', padding: '20px', color: darkMode ? '#64748b' : '#94a3b8', fontSize: '12px', marginTop: '40px', borderTop: `2px solid ${darkMode ? '#1e293b' : '#e2e8f0'}` }}>
+        <p style={{ margin: 0 }}>© 2026 {appName} • 💰 All data stored locally • No tracking</p>
       </footer>
     </div>
   );
