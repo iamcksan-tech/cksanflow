@@ -6,8 +6,6 @@ import { saveData, loadData } from './dataStorage';
 const CONFIG = {
   currency: '¥',
   defaultSavingsPercent: 10,
-  defaultGoalAllocationPercent: 15,
-  defaultInvestmentPercent: 10,
   debtHoldThreshold: 10,
   maxDailyOil: 2000,
   categoryKeywords: {
@@ -41,7 +39,6 @@ const validateAmount = (value) => {
   const num = parseFloat(value);
   return !isNaN(num) && num > 0 && num < 10000000;
 };
-// ============ END CONFIG ============
 
 // Collapsible Section
 function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMode }) {
@@ -63,33 +60,6 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false, darkMo
         <span style={{ fontSize: '20px', color: '#14b8a6', fontWeight: '300', transform: isOpen ? 'rotate(0)' : 'rotate(-90deg)' }}>{isOpen ? '−' : '+'}</span>
       </button>
       {isOpen && <div style={{ padding: '0 20px 20px 20px', borderTop: `1px solid ${darkMode ? '#334155' : '#f1f5f9'}` }}>{children}</div>}
-    </div>
-  );
-}
-
-// Line Chart
-function LineChart({ data, darkMode }) {
-  if (!data || data.length === 0) return null;
-  const maxValue = Math.max(...data.map(d => Math.max(d.debt, d.income, d.savings)));
-  const height = 200, width = 100, padding = 10;
-  const getX = (i) => padding + (i / (data.length - 1)) * (width - 2 * padding);
-  const getY = (v) => height - padding - (v / maxValue) * (height - 2 * padding);
-  const createPath = (key) => data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(d[key])}`).join(' ');
-
-  return (
-    <div style={{ marginTop: '20px', padding: '20px', background: darkMode ? '#0f172a' : '#f8fafc', borderRadius: '12px' }}>
-      <h4 style={{ margin: '0 0 16px 0', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px', fontWeight: '600' }}>📈 Financial Progress</h4>
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '200px' }} preserveAspectRatio="xMidYMid meet">
-        {[0, 0.25, 0.5, 0.75, 1].map((_, i) => (<line key={i} x1={padding} y1={getY(maxValue * i)} x2={width - padding} y2={getY(maxValue * i)} stroke={darkMode ? '#334155' : '#e2e8f0'} strokeWidth="0.5" strokeDasharray="2,2" />))}
-        <path d={createPath('debt')} fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d={createPath('income')} fill="none" stroke="#14b8a6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d={createPath('savings')} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '12px', fontSize: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '3px', background: '#ef4444', borderRadius: '2px' }}></div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Debts</span></div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '3px', background: '#14b8a6', borderRadius: '2px' }}></div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Income</span></div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '3px', background: '#3b82f6', borderRadius: '2px' }}></div><span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Savings</span></div>
-      </div>
     </div>
   );
 }
@@ -136,14 +106,22 @@ function App() {
   const [currentMonth, setCurrentMonth] = useState(() => localStorage.getItem('ckSanFlow_currentMonth') || new Date().toISOString().slice(0, 7));
   const [lastUpdated, setLastUpdated] = useState(() => loadData('lastUpdated', formatJST()));
 
-  // Main State
+  // Main State - CASH, SAVINGS, DEBTS carry over between months
   const [cashAvailable, setCashAvailable] = useState(() => loadData(`cash_${currentMonth}`, 0));
   const [savings, setSavings] = useState(() => loadData(`savings_${currentMonth}`, 0));
   const [creditCards, setCreditCards] = useState(() => loadData(`creditCards_${currentMonth}`, []));
   const [darkMode, setDarkMode] = useState(() => { const s = localStorage.getItem('ckSanFlow_darkMode'); return s ? JSON.parse(s) : false; });
   const [hideNumbers, setHideNumbers] = useState(() => { const s = localStorage.getItem('ckSanFlow_hideNumbers'); return s ? JSON.parse(s) : false; });
+  
+  // Monthly Income Goal - SET BY USER, carries over (not reset)
   const [monthlyIncomeGoal, setMonthlyIncomeGoal] = useState(() => loadData(`monthlyIncomeGoal_${currentMonth}`, 300000));
-
+  
+  // ✅ Monthly Income - RESETS TO 0 EACH NEW MONTH
+  const [monthlyIncome, setMonthlyIncome] = useState(() => {
+    const saved = loadData(`monthlyIncome_${currentMonth}`, null);
+    return saved !== null ? saved : 0; // If no data for this month, start at 0
+  });
+  
   // Daily Income
   const [dailyIncomes, setDailyIncomes] = useState(() => loadData(`dailyIncomes_${currentMonth}`, []));
   const [todayIncome, setTodayIncome] = useState('');
@@ -163,35 +141,13 @@ function App() {
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
   const [newGoal, setNewGoal] = useState({ name: '', target: '', color: '#14b8a6', priority: 'medium' });
-  const [goalAllocationPercent, setGoalAllocationPercent] = useState(() => loadData('goalAllocationPercent', CONFIG.defaultGoalAllocationPercent));
-
-  // Trust Fund
-  const [investmentPercent, setInvestmentPercent] = useState(() => loadData('investmentPercent', CONFIG.defaultInvestmentPercent));
-  const [trustFund, setTrustFund] = useState(() => loadData(`trustFund_${currentMonth}`, 50000));
-  const [spusShares, setSpusShares] = useState(() => loadData(`spusShares_${currentMonth}`, 0));
 
   // Auto-Hold
   const [autoHoldEnabled, setAutoHoldEnabled] = useState(() => loadData('autoHoldEnabled', true));
   const [debtThresholdPercent, setDebtThresholdPercent] = useState(() => loadData('debtThresholdPercent', CONFIG.debtHoldThreshold));
 
-  // Family Support
-  const [familySupport, setFamilySupport] = useState(() => loadData(`familySupport_${currentMonth}`, { parents: { amount: 75000, scheduledDate: '19th', lastPaid: '' }, daughter: { amount: 25000, scheduledDate: 'anytime', lastPaid: '' }, other: { amount: 0, scheduledDate: 'anytime', lastPaid: '' } }));
-
-  // Health Funds
-  const [healthFunds, setHealthFunds] = useState(() => loadData(`healthFunds_${currentMonth}`, { hairTransplant: { goal: 500000, current: 0 } }));
-
-  // Home Expenses
-  const [homeExpenses, setHomeExpenses] = useState(() => loadData(`homeExpenses_${currentMonth}`, { food: 0, gas: 0, electricity: 0 }));
-
   // Car Expenses
   const [carExpenses, setCarExpenses] = useState(() => loadData(`carExpenses_${currentMonth}`, { dailyOil: CONFIG.maxDailyOil, maxDailyOil: CONFIG.maxDailyOil, totalThisMonth: 0 }));
-
-  // Pensions & Insurance
-  const [pensionsInsurance, setPensionsInsurance] = useState(() => loadData(`pensionsInsurance_${currentMonth}`, { nationalPension: 0, healthInsurance: 0, carInsurance: 0, lifeInsurance: 0, taxes: 0, total: 0 }));
-
-  // Monthly Summary
-  const [monthlyIncome, setMonthlyIncome] = useState(() => loadData(`monthlyIncome_${currentMonth}`, 0));
-  const [monthlyExpenses, setMonthlyExpenses] = useState(() => loadData(`monthlyExpenses_${currentMonth}`, 0));
 
   // Settings
   const [showSettings, setShowSettings] = useState(false);
@@ -207,9 +163,6 @@ function App() {
   const shouldHoldSavings = autoHoldEnabled && debtPercentage > debtThresholdPercent;
   const recommendedSavings = Math.round(monthlyIncome * (CONFIG.defaultSavingsPercent / 100));
 
-  // Chart Data
-  const chartData = [{ month: 'Jan', debt: 450000, income: 280000, savings: 45000 }, { month: 'Feb', debt: 380000, income: 295000, savings: 52000 }, { month: 'Mar', debt: 320000, income: 310000, savings: 58000 }, { month: 'Apr', debt: 280000, income: 290000, savings: 62000 }, { month: 'May', debt: totalDebts, income: monthlyIncome, savings: savings }];
-
   // Save with timestamp
   const saveWithTimestamp = (key, value) => { saveData(key, value); const now = formatJST(); setLastUpdated(now); saveData('lastUpdated', now); };
 
@@ -222,56 +175,51 @@ function App() {
     saveWithTimestamp(`cardExpenses_${currentMonth}`, cardExpenses);
     saveWithTimestamp(`monthlyGoals_${currentMonth}`, monthlyGoals);
     saveWithTimestamp(`monthlyIncomeGoal_${currentMonth}`, monthlyIncomeGoal);
-    saveWithTimestamp(`trustFund_${currentMonth}`, trustFund);
-    saveWithTimestamp(`spusShares_${currentMonth}`, spusShares);
+    saveWithTimestamp(`monthlyIncome_${currentMonth}`, monthlyIncome);
+    saveWithTimestamp(`carExpenses_${currentMonth}`, carExpenses);
     saveData('autoHoldEnabled', autoHoldEnabled);
     saveData('debtThresholdPercent', debtThresholdPercent);
-    saveWithTimestamp(`familySupport_${currentMonth}`, familySupport);
-    saveWithTimestamp(`healthFunds_${currentMonth}`, healthFunds);
-    saveWithTimestamp(`homeExpenses_${currentMonth}`, homeExpenses);
-    saveWithTimestamp(`carExpenses_${currentMonth}`, carExpenses);
-    saveWithTimestamp(`pensionsInsurance_${currentMonth}`, pensionsInsurance);
-    saveWithTimestamp(`monthlyIncome_${currentMonth}`, monthlyIncome);
-    saveWithTimestamp(`monthlyExpenses_${currentMonth}`, monthlyExpenses);
     saveData('appName', appName);
     saveData('hideNumbers', hideNumbers);
-  }, [cashAvailable, savings, creditCards, dailyIncomes, cardExpenses, monthlyGoals, monthlyIncomeGoal, trustFund, spusShares, autoHoldEnabled, debtThresholdPercent, familySupport, healthFunds, homeExpenses, carExpenses, pensionsInsurance, monthlyIncome, monthlyExpenses, appName, hideNumbers, currentMonth]);
+  }, [cashAvailable, savings, creditCards, dailyIncomes, cardExpenses, monthlyGoals, monthlyIncomeGoal, monthlyIncome, carExpenses, autoHoldEnabled, debtThresholdPercent, appName, hideNumbers, currentMonth]);
 
   // Dark mode
   useEffect(() => { const s = localStorage.getItem('ckSanFlow_darkMode'); if (s) { const isDark = JSON.parse(s); setDarkMode(isDark); document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } }, []);
 
-  // Month change
+  // Month change - ✅ Monthly Income resets to 0, Cash/Savings/Debts carry over
   const handleMonthChange = (newMonth) => {
     setCurrentMonth(newMonth);
     localStorage.setItem('ckSanFlow_currentMonth', newMonth);
+    
+    // ✅ CARRY OVER: Cash, Savings, Credit Cards (debts)
     setCashAvailable(loadData(`cash_${newMonth}`, 0));
     setSavings(loadData(`savings_${newMonth}`, 0));
     setCreditCards(loadData(`creditCards_${newMonth}`, []));
+    
+    // ✅ CARRY OVER: Monthly Income Goal (user-set target)
+    setMonthlyIncomeGoal(loadData(`monthlyIncomeGoal_${newMonth}`, 300000));
+    
+    // ✅ RESET TO 0: Monthly Income (earned this month)
+    const savedMonthlyIncome = loadData(`monthlyIncome_${newMonth}`, null);
+    setMonthlyIncome(savedMonthlyIncome !== null ? savedMonthlyIncome : 0);
+    
+    // ✅ RESET: Daily Incomes, Card Expenses, Goals, Car Expenses
     setDailyIncomes(loadData(`dailyIncomes_${newMonth}`, []));
     setCardExpenses(loadData(`cardExpenses_${newMonth}`, []));
     setMonthlyGoals(loadData(`monthlyGoals_${newMonth}`, []));
-    setMonthlyIncomeGoal(loadData(`monthlyIncomeGoal_${newMonth}`, 300000));
-    setTrustFund(loadData(`trustFund_${newMonth}`, 50000));
-    setSpusShares(loadData(`spusShares_${newMonth}`, 0));
-    setFamilySupport(loadData(`familySupport_${newMonth}`, { parents: { amount: 75000, scheduledDate: '19th', lastPaid: '' }, daughter: { amount: 25000, scheduledDate: 'anytime', lastPaid: '' }, other: { amount: 0, scheduledDate: 'anytime', lastPaid: '' } }));
-    setHealthFunds(loadData(`healthFunds_${newMonth}`, { hairTransplant: { goal: 500000, current: 0 } }));
-    setHomeExpenses(loadData(`homeExpenses_${newMonth}`, { food: 0, gas: 0, electricity: 0 }));
     setCarExpenses(loadData(`carExpenses_${newMonth}`, { dailyOil: CONFIG.maxDailyOil, maxDailyOil: CONFIG.maxDailyOil, totalThisMonth: 0 }));
-    setPensionsInsurance(loadData(`pensionsInsurance_${newMonth}`, { nationalPension: 0, healthInsurance: 0, carInsurance: 0, lifeInsurance: 0, taxes: 0, total: 0 }));
-    setMonthlyIncome(loadData(`monthlyIncome_${newMonth}`, 0));
-    setMonthlyExpenses(loadData(`monthlyExpenses_${newMonth}`, 0));
   };
 
   const calculateClosingDate = (paymentDate) => { const date = parseInt(paymentDate); let closing = date - 15; if (closing <= 0) closing += 30; return closing.toString() + 'th'; };
 
-  // ✅ Daily Income - ONLY adds to Cash Balance and Monthly Income
+  // ✅ Daily Income - Adds to Cash Balance AND Monthly Income
   const handleAddIncome = () => {
     const amount = parseFloat(todayIncome);
     if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
     const newIncome = { id: Date.now(), amount, date: new Date().toISOString().split('T')[0] };
     setDailyIncomes([newIncome, ...dailyIncomes]);
     setCashAvailable(cashAvailable + amount);
-    setMonthlyIncome(monthlyIncome + amount);
+    setMonthlyIncome(monthlyIncome + amount); // ✅ Increases monthly income
     setTodayIncome('');
     alert(`✅ ${CONFIG.currency}${amount.toLocaleString()} added to Cash Balance!\nMonthly Income: ${CONFIG.currency}${(monthlyIncome + amount).toLocaleString()}`);
   };
@@ -284,15 +232,9 @@ function App() {
     if (newAmount === null) return;
     const amount = parseFloat(newAmount);
     if (!validateAmount(amount)) { alert('Invalid amount'); return; }
-    
-    // Calculate difference
     const diff = amount - latestIncome.amount;
-    
-    // Update cash and monthly income
     setCashAvailable(cashAvailable + diff);
     setMonthlyIncome(monthlyIncome + diff);
-    
-    // Update the income entry
     setDailyIncomes([ { ...latestIncome, amount }, ...dailyIncomes.slice(1) ]);
     alert('✅ Income updated!');
   };
@@ -302,7 +244,6 @@ function App() {
     if (dailyIncomes.length === 0) return;
     const latestIncome = dailyIncomes[0];
     if (!confirm(`Delete this income? ${CONFIG.currency}${latestIncome.amount.toLocaleString()} will be removed from Cash Balance.`)) return;
-    
     setCashAvailable(cashAvailable - latestIncome.amount);
     setMonthlyIncome(monthlyIncome - latestIncome.amount);
     setDailyIncomes(dailyIncomes.slice(1));
@@ -375,7 +316,6 @@ function App() {
       }
       const today = new Date().toISOString().split('T')[0];
       setCardExpenses([{ id: Date.now(), cardId, amount: expenseAmount, category: autoCategorize(description) || category, description, date: today }, ...cardExpenses]);
-      setMonthlyExpenses(monthlyExpenses + expenseAmount);
       alert(`${CONFIG.currency}${expenseAmount.toLocaleString()} recorded!`);
     }
     setNewExpense({ cardId: '', amount: '', category: 'Shopping', description: '' });
@@ -393,7 +333,6 @@ function App() {
       }));
     }
     setCardExpenses(cardExpenses.filter(e => e.id !== expenseId));
-    setMonthlyExpenses(monthlyExpenses - expense.amount);
     alert('🗑️ Expense deleted!');
   };
 
@@ -407,52 +346,14 @@ function App() {
       return card;
     }));
     setCashAvailable(cashAvailable - amount);
-    setMonthlyExpenses(monthlyExpenses + amount);
     alert(`${CONFIG.currency}${amount.toLocaleString()} paid!`);
-  };
-
-  const handleSendFamilySupport = (type, amount) => {
-    if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
-    if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
-    setFamilySupport({ ...familySupport, [type]: { ...familySupport[type], lastPaid: new Date().toISOString().split('T')[0] } });
-    setCashAvailable(cashAvailable - amount);
-    setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`${CONFIG.currency}${amount.toLocaleString()} sent!`);
-  };
-
-  const handleAddHealthFund = (amount) => {
-    if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
-    if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
-    setHealthFunds({ ...healthFunds, hairTransplant: { ...healthFunds.hairTransplant, current: healthFunds.hairTransplant.current + amount } });
-    setCashAvailable(cashAvailable - amount);
-    if (!shouldHoldSavings) setSavings(savings + amount);
-    alert(`${CONFIG.currency}${amount.toLocaleString()} added!`);
-  };
-
-  const handleAddHomeExpense = (type, amount) => {
-    if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
-    if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
-    setHomeExpenses({ ...homeExpenses, [type]: homeExpenses[type] + amount });
-    setCashAvailable(cashAvailable - amount);
-    setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`${CONFIG.currency}${amount.toLocaleString()} recorded!`);
   };
 
   const handleAddCarExpense = () => {
     if (carExpenses.dailyOil > cashAvailable) { alert('❌ Insufficient cash!'); return; }
     setCarExpenses({ ...carExpenses, totalThisMonth: carExpenses.totalThisMonth + carExpenses.dailyOil });
     setCashAvailable(cashAvailable - carExpenses.dailyOil);
-    setMonthlyExpenses(monthlyExpenses + carExpenses.dailyOil);
     alert(`${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()} recorded from Cash Balance!`);
-  };
-
-  const handleAddPensionInsurance = (type, amount) => {
-    if (!validateAmount(amount)) { alert('Please enter a valid amount'); return; }
-    if (amount > cashAvailable) { alert('❌ Insufficient cash!'); return; }
-    setPensionsInsurance({ ...pensionsInsurance, [type]: pensionsInsurance[type] + amount, total: pensionsInsurance.total + amount });
-    setCashAvailable(cashAvailable - amount);
-    setMonthlyExpenses(monthlyExpenses + amount);
-    alert(`${CONFIG.currency}${amount.toLocaleString()} recorded!`);
   };
 
   const handleAddGoal = () => {
@@ -560,8 +461,6 @@ function App() {
           <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.95)' }}>Debts at {debtPercentage.toFixed(1)}% - Focus on paying down to {debtThresholdPercent}%</p>
         </div>
       )}
-
-      <LineChart data={chartData} darkMode={darkMode} />
 
       {/* Dashboard Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
@@ -775,97 +674,19 @@ function App() {
         )}
       </CollapsibleSection>
 
-      {/* Trust Funds */}
-      <CollapsibleSection title="Trust funds & investment" icon="🏦" darkMode={darkMode}>
-        <div style={{ marginTop: '16px' }}>
-          <label style={{ fontSize: '14px', color: darkMode ? '#94a3b8' : '#647480', fontWeight: '600' }}>Auto-invest %:</label>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-            <input type="number" value={investmentPercent} onChange={(e) => setInvestmentPercent(parseFloat(e.target.value) || 0)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <span style={{ padding: '12px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '700' }}>%</span>
-          </div>
-          <p style={{ fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480', marginTop: '8px' }}>💡 Recommended: 10-20% {shouldHoldSavings && '(ON HOLD)'}</p>
-        </div>
-        <div style={{ marginTop: '20px', padding: '16px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '12px' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669', fontWeight: '600' }}>Trust Fund</p>
-          <EditableNumber value={trustFund} onChange={setTrustFund} prefix={CONFIG.currency} darkMode={darkMode} hideNumbers={hideNumbers} fontSize="28px" />
-        </div>
-      </CollapsibleSection>
-
-      {/* Family Support */}
-      <CollapsibleSection title="Family support" icon="👨‍👩‍👧" darkMode={darkMode}>
-        <div style={{ marginTop: '16px' }}>
-          <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>🇯🇵 Parents</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${familySupport.parents.amount.toLocaleString()}`}</p></div>
-              <button onClick={() => handleSendFamilySupport('parents', familySupport.parents.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700' }}>Send</button>
-            </div>
-          </div>
-          <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>🇮🇹 Daughter</p><p style={{ margin: '4px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${familySupport.daughter.amount.toLocaleString()}`}</p></div>
-              <button onClick={() => handleSendFamilySupport('daughter', familySupport.daughter.amount)} style={{ padding: '10px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700' }}>Send</button>
-            </div>
-          </div>
-        </div>
-      </CollapsibleSection>
-
-      {/* Health Funds */}
-      <CollapsibleSection title="Health funds" icon="🏥" darkMode={darkMode}>
-        <div style={{ marginTop: '16px', padding: '16px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '12px' }}>
-          <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>💇 Hair Transplant</p>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
-            <span style={{ color: darkMode ? '#94a3b8' : '#647480' }}>Saved:</span>
-            <strong style={{ color: '#14b8a6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${healthFunds.hairTransplant.current.toLocaleString()}`} / {hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${healthFunds.hairTransplant.goal.toLocaleString()}`}</strong>
-          </div>
-          <div style={{ width: '100%', height: '8px', background: darkMode ? '#0f172a' : '#e2e8f0', borderRadius: '4px', marginTop: '10px' }}>
-            <div style={{ width: `${(healthFunds.hairTransplant.current / healthFunds.hairTransplant.goal) * 100}%`, height: '100%', background: '#14b8a6', borderRadius: '4px' }}></div>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-            <input type="number" placeholder="Amount" id="health-amount" style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-            <button onClick={() => handleAddHealthFund(parseFloat(document.getElementById('health-amount').value))} style={{ padding: '12px 28px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add</button>
-          </div>
-        </div>
-      </CollapsibleSection>
-
-      {/* Home Expenses */}
-      <CollapsibleSection title="Home expenses" icon="🏠" darkMode={darkMode}>
-        <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
-          {['food', 'gas', 'electricity'].map((type) => (
-            <div key={type} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <span style={{ width: '100px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', textTransform: 'capitalize', fontSize: '14px' }}>{type}</span>
-              <input type="number" placeholder="Amount" id={`home-${type}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-              <button onClick={() => handleAddHomeExpense(type, parseFloat(document.getElementById(`home-${type}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add</button>
-            </div>
-          ))}
-        </div>
-      </CollapsibleSection>
-
       {/* Car Expenses */}
       <CollapsibleSection title="Car expenses" icon="🚗" darkMode={darkMode}>
         <div style={{ marginTop: '16px' }}>
           <div style={{ padding: '14px', background: darkMode ? '#1e293b' : '#f8fafc', borderRadius: '10px', marginBottom: '14px' }}>
             <p style={{ margin: 0, fontWeight: '700', color: darkMode ? '#f8fafc' : '#0f172a' }}>⛽ Daily Oil</p>
             <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.dailyOil.toLocaleString()}`} per day</p>
+            <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: darkMode ? '#94a3b8' : '#647480' }}>This month: <strong style={{ color: '#ef4444' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${carExpenses.totalThisMonth.toLocaleString()}`}</strong></p>
           </div>
           <button onClick={handleAddCarExpense} style={{ width: '100%', padding: '14px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add Today ({CONFIG.currency}{carExpenses.dailyOil.toLocaleString()})</button>
         </div>
       </CollapsibleSection>
 
-      {/* Pensions & Insurance */}
-      <CollapsibleSection title="Pensions & Insurance" icon="🛡️" darkMode={darkMode}>
-        <div style={{ marginTop: '16px', display: 'grid', gap: '10px' }}>
-          {[{ key: 'nationalPension', label: '🏛️ National Pension' }, { key: 'healthInsurance', label: '🏥 Health Insurance' }, { key: 'carInsurance', label: '🚗 Car Insurance' }, { key: 'taxes', label: '📋 Taxes' }].map((item) => (
-            <div key={item.key} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <span style={{ width: '140px', color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: '600', fontSize: '13px' }}>{item.label}</span>
-              <input type="number" placeholder="Amount" id={`pension-${item.key}`} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${darkMode ? '#334155' : '#e2e8f0'}`, background: darkMode ? '#0f172a' : 'white', color: darkMode ? '#f8fafc' : '#0f172a', fontSize: '14px' }} />
-              <button onClick={() => handleAddPensionInsurance(item.key, parseFloat(document.getElementById(`pension-${item.key}`).value))} style={{ padding: '12px 20px', background: '#14b8a6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Add</button>
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: '14px', padding: '14px', background: darkMode ? '#7c3aed' : '#ddd6fe', borderRadius: '10px' }}><p style={{ margin: 0, fontSize: '14px', color: darkMode ? 'white' : '#6d28d9', fontWeight: '600' }}>Total: <strong style={{ fontSize: '18px', color: darkMode ? 'white' : '#5b21b6' }}>{hideNumbers ? CONFIG.currency + '••••' : `${CONFIG.currency}${pensionsInsurance.total.toLocaleString()}`}</strong></p></div>
-      </CollapsibleSection>
-
-      {/* ✅✅✅ DAILY INCOME - LAST SECTION (Under Pensions) */}
+      {/* Daily Income - LAST SECTION */}
       <CollapsibleSection title="Daily Income" icon="💵" darkMode={darkMode} defaultOpen={true}>
         <div style={{ padding: '16px', background: darkMode ? '#059669' : '#d1fae5', borderRadius: '12px', marginBottom: '16px' }}>
           <p style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600', color: darkMode ? 'rgba(255,255,255,0.9)' : '#059669' }}>Add income to increase your Cash Balance</p>
@@ -888,7 +709,6 @@ function App() {
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <span style={{ color: '#14b8a6', fontWeight: '700', fontSize: '16px' }}>{hideNumbers ? '+' + CONFIG.currency + '••••' : `+${CONFIG.currency}${income.amount.toLocaleString()}`}</span>
-                  {/* ✅ ONLY Show Edit/Delete for LATEST (index 0) */}
                   {index === 0 && (
                     <>
                       <button onClick={handleEditIncome} style={{ padding: '4px 8px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>✏️</button>
