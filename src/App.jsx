@@ -1,7 +1,20 @@
 {/* Key Metrics Cards */}
 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '32px' }}>
   {/* Cash Balance */}
-  <div onClick={() => setActiveTab('income')} style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', borderRadius: '20px', padding: '28px', color: 'white', cursor: 'pointer', boxShadow: '0 8px 24px rgba(16,185,129,0.3)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+  <div 
+    onClick={() => setActiveTab('income')} 
+    style={{ 
+      background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', 
+      borderRadius: '20px', 
+      padding: '28px', 
+      color: 'white', 
+      cursor: 'pointer',
+      boxShadow: '0 8px 24px rgba(16,185,129,0.3)',
+      transition: 'transform 0.2s ease' 
+    }} 
+    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; }} 
+    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+  >
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
       <div>
         <p style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '600', opacity: 0.9 }}>💵 Cash Balance</p>
@@ -15,7 +28,20 @@
   </div>
 
   {/* Savings */}
-  <div onClick={() => setActiveTab('goals')} style={{ background: darkMode ? 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)' : 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)', borderRadius: '20px', padding: '28px', color: 'white', cursor: 'pointer', boxShadow: '0 8px 24px rgba(59,130,246,0.3)', transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+  <div 
+    onClick={() => setActiveTab('goals')} 
+    style={{ 
+      background: darkMode ? 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)' : 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)', 
+      borderRadius: '20px', 
+      padding: '28px', 
+      color: 'white', 
+      cursor: 'pointer',
+      boxShadow: '0 8px 24px rgba(59,130,246,0.3)',
+      transition: 'transform 0.2s ease' 
+    }} 
+    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; }} 
+    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+  >
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
       <div>
         <p style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '600', opacity: 0.9 }}>💰 Savings</p>
@@ -36,7 +62,28 @@
   </div>
 
   {/* Debts */}
-  <div onClick={() => setActiveTab('cards')} style={{ background: debtPercentage > 50 ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' : (darkMode ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)'), borderRadius: '20px', padding: '28px', color: debtPercentage > 50 ? 'white' : (darkMode ? '#f8fafc' : '#0f172a'), cursor: 'pointer', boxShadow: debtPercentage > 50 ? '0 8px 24px rgba(239,68,68,0.3)' : (darkMode ? '0 8px 24px rgba(0,0,0,0.3)' : '0 8px 24px rgba(0,0,0,0.08)'), transition: 'transform 0.2s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+  <div 
+    onClick={() => setActiveTab('cards')} 
+    style={{ 
+      background: debtPercentage > 50 
+        ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)' 
+        : darkMode 
+          ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' 
+          : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+      borderRadius: '20px', 
+      padding: '28px', 
+      color: debtPercentage > 50 ? 'white' : (darkMode ? '#f8fafc' : '#0f172a'), 
+      cursor: 'pointer',
+      boxShadow: debtPercentage > 50 
+        ? '0 8px 24px rgba(239,68,68,0.3)' 
+        : darkMode 
+          ? '0 8px 24px rgba(0,0,0,0.3)' 
+          : '0 8px 24px rgba(0,0,0,0.08)',
+      transition: 'transform 0.2s ease' 
+    }} 
+    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; }} 
+    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+  >
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
       <div>
         <p style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '600', opacity: 0.9 }}>⚠️ Total Debts</p>
